@@ -140,7 +140,7 @@ export const GeneratePage: React.FC = () => {
           {showApiKeyInput ? (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="api-key">OpenAI API Key</Label>
+                <Label htmlFor="api-key">OpenRouter API Key</Label>
                 <Input
                   id="api-key"
                   type="password"

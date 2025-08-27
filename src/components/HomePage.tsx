@@ -66,29 +66,31 @@ export const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-4rem)]">
       {/* Hero Section */}
-      <div className="text-center mb-12">
+      <div className="text-center mb-12 animate-fade-in">
         <div className="flex justify-center mb-6">
-          <div className="p-4 bg-blue-100 rounded-full">
+          <div className="p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full shadow-lg animate-pulse">
             <Brain className="h-12 w-12 text-blue-600" />
           </div>
         </div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           AI驱动的面试题自测平台
         </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
           利用先进的AI技术，为你生成个性化的面试题目，帮助你在技术面试中脱颖而出
         </p>
       </div>
 
       {/* Stats Cards */}
       {stats.totalTests > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12 animate-slide-up">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-6 hover:bg-gray-50 transition-colors duration-200">
               <div className="flex items-center">
-                <Target className="h-8 w-8 text-blue-600 mr-3" />
+                <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                  <Target className="h-6 w-6 text-blue-600" />
+                </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalTests}</p>
                   <p className="text-gray-600">测试次数</p>
@@ -98,9 +100,11 @@ export const HomePage: React.FC = () => {
           </Card>
           
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-6 hover:bg-gray-50 transition-colors duration-200">
               <div className="flex items-center">
-                <Award className="h-8 w-8 text-green-600 mr-3" />
+                <div className="p-2 bg-green-100 rounded-lg mr-3">
+                  <Award className="h-6 w-6 text-green-600" />
+                </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{stats.averageScore}%</p>
                   <p className="text-gray-600">平均得分</p>
@@ -110,9 +114,11 @@ export const HomePage: React.FC = () => {
           </Card>
           
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-6 hover:bg-gray-50 transition-colors duration-200">
               <div className="flex items-center">
-                <BookOpen className="h-8 w-8 text-orange-600 mr-3" />
+                <div className="p-2 bg-orange-100 rounded-lg mr-3">
+                  <BookOpen className="h-6 w-6 text-orange-600" />
+                </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalWrongAnswers}</p>
                   <p className="text-gray-600">错题数</p>
@@ -122,9 +128,11 @@ export const HomePage: React.FC = () => {
           </Card>
           
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-6 hover:bg-gray-50 transition-colors duration-200">
               <div className="flex items-center">
-                <TrendingUp className="h-8 w-8 text-purple-600 mr-3" />
+                <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                  <TrendingUp className="h-6 w-6 text-purple-600" />
+                </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">
                     {Math.round((stats.correctAnswers / stats.totalQuestions) * 100)}%
@@ -138,19 +146,19 @@ export const HomePage: React.FC = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 animate-slide-up" style={{animationDelay: '0.2s'}}>
         {quickActions.map(({ title, description, icon: Icon, color, action }) => (
-          <Card key={title} className="cursor-pointer transition-transform hover:scale-105">
+          <Card key={title} className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl group">
             <CardContent className="p-6">
               <div className="text-center">
                 <div className="mb-4">
-                  <div className={`inline-flex p-3 rounded-full ${color}`}>
+                  <div className={`inline-flex p-3 rounded-full ${color} transition-transform duration-300 group-hover:scale-110`}>
                     <Icon className="h-6 w-6 text-white" />
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
                 <p className="text-gray-600 mb-4">{description}</p>
-                <Button onClick={action} className="w-full">
+                <Button onClick={action} className="w-full transition-all duration-200 hover:shadow-md">
                   开始使用
                 </Button>
               </div>
@@ -160,19 +168,19 @@ export const HomePage: React.FC = () => {
       </div>
 
       {/* Features */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-slide-up" style={{animationDelay: '0.4s'}}>
         {features.map(({ icon: Icon, title, description, color, bgColor }) => (
-          <Card key={title}>
+          <Card key={title} className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
             <CardHeader>
               <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg ${bgColor}`}>
+                <div className={`p-3 rounded-lg ${bgColor} transition-transform duration-300 hover:scale-110`}>
                   <Icon className={`h-6 w-6 ${color}`} />
                 </div>
                 <CardTitle className="text-lg">{title}</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
-              <CardDescription className="text-base">{description}</CardDescription>
+              <CardDescription className="text-base leading-relaxed">{description}</CardDescription>
             </CardContent>
           </Card>
         ))}

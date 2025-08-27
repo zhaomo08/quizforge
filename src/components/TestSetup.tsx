@@ -103,7 +103,8 @@ export const TestSetup: React.FC = () => {
           </Button>
         </CardContent>
       </Card>
-      </div>
     </div>
   );
 };
+  )
+}

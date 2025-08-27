@@ -108,7 +108,8 @@ export const TestPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-4rem)] layout-stable">
+      <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
@@ -202,6 +203,7 @@ export const TestPage: React.FC = () => {
             </p>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

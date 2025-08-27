@@ -50,7 +50,8 @@ export const ResultPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-4rem)] layout-stable">
+      <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
@@ -234,6 +235,7 @@ export const ResultPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

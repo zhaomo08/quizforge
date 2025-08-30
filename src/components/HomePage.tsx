@@ -57,6 +57,13 @@ export const HomePage: React.FC = () => {
       action: () => dispatch({ type: 'SET_PAGE', payload: 'category' }),
     },
     {
+      title: '智能学习助手',
+      description: '获得个性化学习建议和分析',
+      icon: Brain,
+      color: 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700',
+      action: () => dispatch({ type: 'SET_PAGE', payload: 'learning-assistant' }),
+    },
+    {
       title: '学习分析',
       description: '查看详细的学习数据和进度',
       icon: BarChart3,
@@ -66,7 +73,7 @@ export const HomePage: React.FC = () => {
     {
       title: 'AI出题',
       description: '使用AI生成新的面试题目',
-      icon: Brain,
+      icon: Target,
       color: 'bg-green-600 hover:bg-green-700',
       action: () => dispatch({ type: 'SET_PAGE', payload: 'generate' }),
     },
@@ -160,7 +167,7 @@ export const HomePage: React.FC = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 animate-slide-up" style={{animationDelay: '0.2s'}}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12 animate-slide-up" style={{animationDelay: '0.2s'}}>
         {quickActions.map(({ title, description, icon: Icon, color, action }) => (
           <Card key={title} className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl group">
             <CardContent className="p-6">
@@ -171,7 +178,7 @@ export const HomePage: React.FC = () => {
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-                <p className="text-gray-600 mb-4">{description}</p>
+                <p className="text-gray-600 mb-4 text-sm">{description}</p>
                 <Button onClick={action} className="w-full transition-all duration-200 hover:shadow-md">
                   开始使用
                 </Button>

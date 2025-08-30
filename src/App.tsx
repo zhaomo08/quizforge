@@ -5,11 +5,14 @@ import { HomePage } from '@/components/HomePage';
 import { CategorySelection } from '@/components/CategorySelection';
 import { TestSetup } from '@/components/TestSetup';
 import { TestPage } from '@/components/TestPage';
+import { EnhancedTestPage } from '@/components/EnhancedTestPage';
 import { ResultPage } from '@/components/ResultPage';
+import { EnhancedResultPage } from '@/components/EnhancedResultPage';
 import { WrongAnswersPage } from '@/components/WrongAnswersPage';
 import { GeneratePage } from '@/components/GeneratePage';
 import { ManagePage } from '@/components/ManagePage';
 import { AnalyticsPage } from '@/components/AnalyticsPage';
+import { SmartLearningAssistant } from '@/components/SmartLearningAssistant';
 import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 import './dark-mode-fix.css';
@@ -28,15 +31,17 @@ function AppContent() {
       case 'test-setup':
         return <TestSetup />;
       case 'test':
-        return <TestPage />;
+        return <EnhancedTestPage />;
       case 'result':
-        return <ResultPage />;
+        return <EnhancedResultPage />;
       case 'wrong-answers':
         return <WrongAnswersPage />;
       case 'generate':
         return <GeneratePage />;
       case 'manage':
         return <ManagePage />;
+      case 'learning-assistant':
+        return <SmartLearningAssistant />;
       default:
         return <HomePage />;
     }

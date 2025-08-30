@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Brain, 
   Loader2, 
   Key, 
   Plus, 
@@ -97,7 +96,7 @@ export const GeneratePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-4rem)] layout-stable">
+    <div className="page-container layout-stable">
       {/* Header */}
       <div className="flex items-center mb-8">
         <Button

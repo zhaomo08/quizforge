@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Brain, Target, BookOpen, BarChart3, Zap, Award, Clock, TrendingUp } from 'lucide-react';
+import { Brain, Target, BookOpen, BarChart3, Zap, Award, TrendingUp } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { testUtils } from '@/utils/testUtils';
 
@@ -66,7 +66,7 @@ export const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-4rem)] layout-stable">
+    <div className="page-container layout-stable">
       {/* Hero Section */}
       <div className="text-center mb-12 animate-fade-in">
         <div className="flex justify-center mb-6">

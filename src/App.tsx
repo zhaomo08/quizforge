@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { AppProvider, useApp } from '@/contexts/AppContext';
 import { Navigation } from '@/components/Navigation';
 import { HomePage } from '@/components/HomePage';
@@ -41,8 +41,10 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
       <Navigation />
-      <main className="pb-8 transition-all duration-300 ease-in-out">
-        {renderCurrentPage()}
+      <main className="main-container content-width-stable">
+        <div className="page-transition-stable">
+          {renderCurrentPage()}
+        </div>
       </main>
       <Toaster />
     </div>

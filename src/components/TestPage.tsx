@@ -5,7 +5,9 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
-import { Question } from '@/types';
+import { TestResult } from '@/types';
+import { storage } from '@/utils/storage';
+import { testUtils } from '@/utils/testUtils';
 
 export const TestPage: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -16,8 +18,14 @@ export const TestPage: React.FC = () => {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [startTime] = useState(Date.now());
 
-  const currentQuestion = state.testQuestions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / state.testQuestions.length) * 100;
+  // 检查是否有当前测试
+  if (!state.currentTest) {
+    dispatch({ type: 'SET_PAGE', payload: 'home' });
+    return null;
+  }
+
+  const currentQuestion = state.currentTest.questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / state.currentTest.questions.length) * 100;
 
   useEffect(() => {
     if (timeLeft > 0 && !showAnswer) {
@@ -35,7 +43,7 @@ export const TestPage: React.FC = () => {
   };
 
   const handleNext = () => {
-    if (currentQuestionIndex < state.testQuestions.length - 1) {
+    if (currentQuestionIndex < state.currentTest!.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer('');
       setShowAnswer(false);
@@ -46,37 +54,57 @@ export const TestPage: React.FC = () => {
   };
 
   const finishTest = () => {
-    const wrongAnswers: Question[] = [];
-    let correctCount = 0;
-
-    state.testQuestions.forEach((question, index) => {
+    if (!state.currentTest) return;
+    
+    // 转换答案格式：从字母转换为数字索引
+    const userAnswers: number[] = [];
+    state.currentTest.questions.forEach((_, index) => {
       const userAnswer = answers[index] || '';
-      if (userAnswer === question.correctAnswer) {
-        correctCount++;
+      if (userAnswer) {
+        // 将字母答案转换为数字索引 (A=0, B=1, C=2, D=3)
+        userAnswers[index] = userAnswer.charCodeAt(0) - 65;
       } else {
-        wrongAnswers.push(question);
+        userAnswers[index] = -1; // 未回答
       }
     });
 
+    const correctCount = state.currentTest.questions.reduce((count, question, index) => {
+      return count + (question.correctAnswer === userAnswers[index] ? 1 : 0);
+    }, 0);
+
     const timeTaken = Math.floor((Date.now() - startTime) / 1000);
-    const percentage = Math.round((correctCount / state.testQuestions.length) * 100);
+    const score = Math.round((correctCount / state.currentTest.questions.length) * 100);
+
+    const testResult: TestResult = {
+      id: `test_${Date.now()}`,
+      category: state.selectedCategory,
+      totalQuestions: state.currentTest.questions.length,
+      correctAnswers: correctCount,
+      score,
+      questions: state.currentTest.questions,
+      userAnswers,
+      completedAt: new Date().toISOString(),
+      timeSpent: timeTaken,
+    };
+
+    // 保存测试结果
+    storage.saveTestResult(testResult);
+    
+    // 保存错题
+    testUtils.saveWrongAnswers(testResult);
 
     dispatch({
       type: 'FINISH_TEST',
-      payload: {
-        score: correctCount,
-        total: state.testQuestions.length,
-        percentage,
-        wrongAnswers,
-        timeTaken
-      }
+      payload: testResult
     });
   };
 
-  const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+  // 将字母答案转换为数字进行比较
+  const selectedAnswerIndex = selectedAnswer ? selectedAnswer.charCodeAt(0) - 65 : -1;
+  const isCorrect = selectedAnswerIndex === currentQuestion.correctAnswer;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-4rem)] layout-stable">
+    <div className="page-container layout-stable">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <Button
@@ -93,7 +121,7 @@ export const TestPage: React.FC = () => {
               {timeLeft}s
             </Badge>
             <span className="text-sm text-gray-600">
-              {currentQuestionIndex + 1} / {state.testQuestions.length}
+              {currentQuestionIndex + 1} / {state.currentTest.questions.length}
             </span>
           </div>
         </div>
@@ -117,7 +145,7 @@ export const TestPage: React.FC = () => {
               {currentQuestion.options.map((option, index) => {
                 const optionLetter = String.fromCharCode(65 + index);
                 const isSelected = selectedAnswer === optionLetter;
-                const isCorrectOption = optionLetter === currentQuestion.correctAnswer;
+                const isCorrectOption = index === currentQuestion.correctAnswer;
                 
                 let buttonClass = "w-full text-left p-4 border rounded-lg transition-all duration-200 ";
                 
@@ -174,7 +202,7 @@ export const TestPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="text-sm text-gray-600">
-                  <strong>正确答案：</strong>{currentQuestion.correctAnswer}
+                  <strong>正确答案：</strong>{String.fromCharCode(65 + currentQuestion.correctAnswer)} - {currentQuestion.options[currentQuestion.correctAnswer]}
                 </div>
                 {currentQuestion.explanation && (
                   <div className="mt-2 text-sm text-gray-700">
@@ -193,7 +221,7 @@ export const TestPage: React.FC = () => {
               size="lg"
               className="bg-blue-600 hover:bg-blue-700 px-8"
             >
-              {currentQuestionIndex < state.testQuestions.length - 1 ? '下一题' : '查看结果'}
+              {currentQuestionIndex < state.currentTest.questions.length - 1 ? '下一题' : '查看结果'}
             </Button>
           </div>
         )}

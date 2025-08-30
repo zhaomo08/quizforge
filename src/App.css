@@ -1,6 +1,99 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* 统一的布局样式 */
+.layout-stable {
+  width: 100%;
+  transition: none !important;
+}
+
+/* 防止页面切换时的布局抖动 */
+.main-container {
+  min-height: calc(100vh - 4rem);
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* 统一的页面容器 - 全屏布局 */
+.page-container {
+  width: 100%;
+  padding: 2rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .page-container {
+    padding: 2rem 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-container {
+    padding: 2rem 2rem;
+  }
+}
+
+/* 防止动画导致的布局变化 */
+* {
+  box-sizing: border-box;
+}
+
+/* 确保导航栏宽度稳定 - 全屏 */
+.navigation-container {
+  width: 100%;
+}
+
+/* 防止页面切换时的闪烁 */
+.main-container > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* 确保所有页面容器有相同的最小高度 */
+.page-container {
+  min-height: calc(100vh - 4rem);
+}
+
+/* 页面切换时的稳定性控制 - 全屏 */
+.page-transition-stable {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 防止内容导致的宽度变化 */
+.content-width-stable {
+  overflow-x: hidden;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* 确保网格布局不会导致容器宽度变化 */
+.grid {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 响应式断点的统一处理 */
+@media (max-width: 640px) {
+  .page-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .page-container {
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  .page-container {
+    padding-left: 3rem !important;
+    padding-right: 3rem !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  .page-container {
+    padding-left: 4rem !important;
+    padding-right: 4rem !important;
+  }
 }

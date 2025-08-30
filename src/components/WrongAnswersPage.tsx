@@ -10,7 +10,7 @@ import {
   XCircle, 
   RotateCcw, 
   Trash2,
-  Filter,
+
   ArrowLeft
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
@@ -18,7 +18,7 @@ import { storage } from '@/utils/storage';
 import { WrongAnswer } from '@/types';
 
 export const WrongAnswersPage: React.FC = () => {
-  const { state, dispatch } = useApp();
+  const { dispatch } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [wrongAnswers, setWrongAnswers] = useState<WrongAnswer[]>(
@@ -39,10 +39,7 @@ export const WrongAnswersPage: React.FC = () => {
     dispatch({ type: 'SET_WRONG_ANSWERS', payload: storage.getWrongAnswers() });
   };
 
-  const handlePracticeCategory = (category: string) => {
-    dispatch({ type: 'SET_CATEGORY', payload: category });
-    dispatch({ type: 'SET_PAGE', payload: 'test-setup' });
-  };
+
 
   const handlePracticeWrongAnswers = () => {
     const questions = filteredWrongAnswers.map(wa => wa.question);
@@ -65,7 +62,7 @@ export const WrongAnswersPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-4rem)] layout-stable">
+    <div className="page-container layout-stable">
       {/* Header */}
       <div className="flex items-center mb-8">
         <Button

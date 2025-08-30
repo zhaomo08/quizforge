@@ -105,7 +105,7 @@ export const ManagePage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-4rem)] layout-stable">
+    <div className="page-container layout-stable">
       {/* Header */}
       <div className="flex items-center mb-8">
         <Button
@@ -215,11 +215,11 @@ export const ManagePage: React.FC = () => {
                 className="hidden"
                 id="import-file"
               />
-              <label htmlFor="import-file">
-                <Button as="div" className="w-full flex items-center justify-center cursor-pointer">
+              <label htmlFor="import-file" className="w-full">
+                <div className="w-full flex items-center justify-center cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 rounded-md text-sm font-medium transition-colors">
                   <Upload className="h-4 w-4 mr-2" />
                   导入数据
-                </Button>
+                </div>
               </label>
             </div>
             

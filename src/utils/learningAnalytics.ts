@@ -175,54 +175,65 @@ export class LearningAnalytics {
    */
   static getKnowledgePoints(): KnowledgePoint[] {
     const results = storage.getTestResults();
-    const knowledgeMap = new Map<string, KnowledgePoint>();
     
-    results.forEach(result => {
-      result.questions.forEach((question, index) => {
-        const isCorrect = result.userAnswers[index] === question.correctAnswer;
-        const pointId = this.extractKnowledgePointId(question);
-        
-        if (knowledgeMap.has(pointId)) {
-          const point = knowledgeMap.get(pointId)!;
-          point.totalAttempts++;
-          if (isCorrect) point.correctAttempts++;
-          point.accuracy = (point.correctAttempts / point.totalAttempts) * 100;
-          point.lastAttempt = result.completedAt;
-        } else {
-          knowledgeMap.set(pointId, {
-            id: pointId,
-            name: this.extractKnowledgePointName(question),
-            category: result.category,
-            totalAttempts: 1,
-            correctAttempts: isCorrect ? 1 : 0,
-            accuracy: isCorrect ? 100 : 0,
-            averageTime: (result.timeSpent || 0) / result.totalQuestions,
-            difficulty: 'medium',
-            lastAttempt: result.completedAt
-          });
-        }
-      });
-    });
+    // 使用新的知识点分析器
+    const { KnowledgePointAnalyzer } = require('./knowledgePointAnalyzer');
+    const knowledgeStats = KnowledgePointAnalyzer.analyzeAllKnowledgePoints(results);
     
-    return Array.from(knowledgeMap.values())
-      .sort((a, b) => b.totalAttempts - a.totalAttempts);
+    // 转换为原有的KnowledgePoint格式
+    return knowledgeStats.map((stats: any) => ({
+      id: stats.id,
+      name: stats.name,
+      category: stats.category,
+      totalAttempts: stats.totalAttempts,
+      correctAttempts: stats.correctAttempts,
+      accuracy: stats.accuracy,
+      averageTime: stats.averageTime,
+      difficulty: stats.difficulty,
+      lastAttempt: stats.lastAttempt
+    }));
   }
 
   /**
    * 提取知识点ID
    */
   private static extractKnowledgePointId(question: Question): string {
-    // 简化版本：使用题目的前50个字符作为知识点标识
-    return question.question.substring(0, 50).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
+    const knowledgePoint = this.extractKnowledgePointName(question);
+    return knowledgePoint.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
   }
 
   /**
    * 提取知识点名称
    */
   private static extractKnowledgePointName(question: Question): string {
-    // 简化版本：从题目中提取关键词
+    const questionText = question.question.toLowerCase();
+    
+    // 根据题目内容判断知识点类别
+    if (questionText.includes('语法') || questionText.includes('变量') || questionText.includes('数据类型') || questionText.includes('运算符')) {
+      return '基础语法';
+    } else if (questionText.includes('类') || questionText.includes('对象') || questionText.includes('继承') || questionText.includes('封装') || questionText.includes('多态')) {
+      return '面向对象';
+    } else if (questionText.includes('数组') || questionText.includes('链表') || questionText.includes('栈') || questionText.includes('队列') || questionText.includes('树') || questionText.includes('图')) {
+      return '数据结构';
+    } else if (questionText.includes('算法') || questionText.includes('排序') || questionText.includes('查找') || questionText.includes('递归') || questionText.includes('动态规划')) {
+      return '算法思维';
+    } else if (questionText.includes('函数') || questionText.includes('方法') || questionText.includes('参数') || questionText.includes('返回值')) {
+      return '函数与方法';
+    } else if (questionText.includes('异常') || questionText.includes('错误') || questionText.includes('调试')) {
+      return '异常处理';
+    } else if (questionText.includes('文件') || questionText.includes('输入') || questionText.includes('输出') || questionText.includes('流')) {
+      return '文件操作';
+    } else if (questionText.includes('线程') || questionText.includes('并发') || questionText.includes('同步') || questionText.includes('异步')) {
+      return '并发编程';
+    } else if (questionText.includes('数据库') || questionText.includes('sql') || questionText.includes('查询')) {
+      return '数据库操作';
+    } else if (questionText.includes('网络') || questionText.includes('http') || questionText.includes('api')) {
+      return '网络编程';
+    }
+    
+    // 如果没有匹配到特定类别，尝试从题目中提取关键词
     const keywords = question.question.match(/[\u4e00-\u9fa5]{2,8}/g) || [];
-    return keywords.slice(0, 2).join(' ') || '未知知识点';
+    return keywords.slice(0, 2).join(' ') || '综合应用';
   }
 
   /**

@@ -4,20 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  BarChart3, 
   TrendingUp, 
   Target, 
   Clock, 
   Award, 
-  BookOpen, 
   Brain,
-  Calendar,
   Zap,
   Trophy,
   Activity,
   PieChart,
-  LineChart,
-  Users,
   Star,
   CheckCircle,
   XCircle,
@@ -26,7 +21,8 @@ import {
   ArrowDown,
   Minus,
   Download,
-  FileText
+  FileText,
+  Calendar
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { storage } from '@/utils/storage';
@@ -96,7 +92,7 @@ export const AnalyticsPage: React.FC = () => {
         : recentAvg;
       
       const improvement = recentAvg - olderAvg;
-      const trend = improvement > 5 ? 'up' : improvement < -5 ? 'down' : 'stable';
+      const trend = improvement > 5 ? 'up' as const : improvement < -5 ? 'down' as const : 'stable' as const;
 
       return {
         category,

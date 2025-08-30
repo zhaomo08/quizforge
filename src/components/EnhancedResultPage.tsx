@@ -17,16 +17,15 @@ import {
   CheckCircle,
   XCircle,
   BarChart3,
-  PieChart,
   Lightbulb,
   Award,
   Zap,
   Eye,
-  Download,
-  Share2
+  Download
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { storage } from '@/utils/storage';
+import { KnowledgePointAnalyzer } from '@/utils/knowledgePointAnalyzer';
 
 interface KnowledgePoint {
   name: string;
@@ -76,45 +75,142 @@ export const EnhancedResultPage: React.FC = () => {
   }, [state.testResult]);
 
   const analyzeKnowledgePoints = () => {
-    // 模拟知识点分析
-    const points: KnowledgePoint[] = [
-      { name: '基础语法', correct: 3, total: 4, percentage: 75 },
-      { name: '面向对象', correct: 2, total: 3, percentage: 67 },
-      { name: '数据结构', correct: 4, total: 4, percentage: 100 },
-      { name: '算法思维', correct: 1, total: 2, percentage: 50 },
-    ];
+    if (!state.testResult) return;
+    
+    // 使用新的知识点分析器分析当前测试
+    
+    // 使用新的知识点分析器分析当前测试
+    const currentTestMap = KnowledgePointAnalyzer.analyzeTestKnowledgePoints(state.testResult);
+    
+    // 转换为显示格式
+    const points: KnowledgePoint[] = Array.from(currentTestMap.entries()).map(([name, stats]) => ({
+      name,
+      correct: stats.correct,
+      total: stats.total,
+      percentage: Math.round((stats.correct / stats.total) * 100)
+    })).sort((a, b) => b.total - a.total); // 按题目数量排序
+    
     setKnowledgeAnalysis(points);
   };
 
   const generateLearningInsights = () => {
     const insights: LearningInsight[] = [];
     
-    if (score >= 80) {
+    // 获取历史数据进行更深入的分析
+    const allResults = storage.getTestResults();
+    const categoryResults = allResults.filter(r => r.category === state.testResult!.category);
+    
+    // 基于总体表现的洞察
+    if (score >= 90) {
+      insights.push({
+        type: 'strength',
+        title: '表现卓越',
+        description: `你的正确率达到了 ${score}%，掌握程度非常优秀！可以尝试更高难度的挑战。`,
+        icon: <Trophy className="h-5 w-5 text-yellow-500" />
+      });
+    } else if (score >= 80) {
       insights.push({
         type: 'strength',
         title: '表现优秀',
         description: `你的正确率达到了 ${score}%，说明对这个知识领域掌握得很好！`,
-        icon: <Trophy className="h-5 w-5 text-yellow-500" />
+        icon: <Star className="h-5 w-5 text-yellow-500" />
       });
-    }
-    
-    if (score < 60) {
+    } else if (score >= 70) {
+      insights.push({
+        type: 'suggestion',
+        title: '表现良好',
+        description: `你的正确率为 ${score}%，基础扎实，再加把劲就能达到优秀水平！`,
+        icon: <Target className="h-5 w-5 text-blue-500" />
+      });
+    } else if (score >= 60) {
+      insights.push({
+        type: 'weakness',
+        title: '需要提升',
+        description: `正确率为 ${score}%，建议重点复习薄弱知识点，多做针对性练习。`,
+        icon: <AlertTriangle className="h-5 w-5 text-orange-500" />
+      });
+    } else {
       insights.push({
         type: 'weakness',
         title: '需要加强',
-        description: '建议重点复习基础概念，多做练习题巩固知识点。',
+        description: `正确率为 ${score}%，建议从基础概念开始系统性复习，循序渐进提升。`,
         icon: <AlertTriangle className="h-5 w-5 text-red-500" />
       });
     }
     
-    insights.push({
-      type: 'suggestion',
-      title: '学习建议',
-      description: '建议每天坚持练习15-30分钟，保持学习的连续性。',
-      icon: <Lightbulb className="h-5 w-5 text-blue-500" />
-    });
+    // 基于知识点分析的洞察
+    const weakPoints = knowledgeAnalysis.filter(point => point.percentage < 60);
+    const strongPoints = knowledgeAnalysis.filter(point => point.percentage >= 80);
     
-    setLearningInsights(insights);
+    if (strongPoints.length > 0) {
+      insights.push({
+        type: 'strength',
+        title: '优势领域',
+        description: `在 ${strongPoints.map(p => p.name).join('、')} 方面表现突出，继续保持！`,
+        icon: <CheckCircle className="h-5 w-5 text-green-500" />
+      });
+    }
+    
+    if (weakPoints.length > 0) {
+      insights.push({
+        type: 'weakness',
+        title: '薄弱环节',
+        description: `在 ${weakPoints.map(p => p.name).join('、')} 方面需要重点加强练习。`,
+        icon: <XCircle className="h-5 w-5 text-red-500" />
+      });
+    }
+    
+    // 基于历史趋势的洞察
+    if (categoryResults.length > 1) {
+      const recentAvg = categoryResults.slice(-3).reduce((sum, r) => sum + r.score, 0) / Math.min(3, categoryResults.length);
+      const olderAvg = categoryResults.slice(-6, -3).reduce((sum, r) => sum + r.score, 0) / Math.min(3, categoryResults.slice(-6, -3).length);
+      
+      if (recentAvg > olderAvg + 10) {
+        insights.push({
+          type: 'strength',
+          title: '进步明显',
+          description: `最近的表现比之前提升了 ${Math.round(recentAvg - olderAvg)}%，学习效果显著！`,
+          icon: <TrendingUp className="h-5 w-5 text-green-500" />
+        });
+      } else if (recentAvg < olderAvg - 10) {
+        insights.push({
+          type: 'weakness',
+          title: '需要调整',
+          description: `最近表现有所下降，建议调整学习方法或适当休息。`,
+          icon: <AlertTriangle className="h-5 w-5 text-orange-500" />
+        });
+      }
+    }
+    
+    // 基于答题时间的洞察
+    const avgTimePerQuestion = (timeSpent || 0) / totalQuestions;
+    if (avgTimePerQuestion > 120) { // 超过2分钟每题
+      insights.push({
+        type: 'suggestion',
+        title: '答题效率',
+        description: '答题时间较长，建议提高解题速度，多做限时练习。',
+        icon: <Clock className="h-5 w-5 text-blue-500" />
+      });
+    } else if (avgTimePerQuestion < 30 && score < 80) { // 少于30秒但正确率不高
+      insights.push({
+        type: 'suggestion',
+        title: '答题策略',
+        description: '答题速度较快但正确率有待提升，建议仔细审题，提高准确性。',
+        icon: <Brain className="h-5 w-5 text-blue-500" />
+      });
+    }
+    
+    // 通用学习建议
+    if (insights.length < 4) {
+      insights.push({
+        type: 'suggestion',
+        title: '学习建议',
+        description: '建议每天坚持练习15-30分钟，保持学习的连续性和规律性。',
+        icon: <Lightbulb className="h-5 w-5 text-blue-500" />
+      });
+    }
+    
+    setLearningInsights(insights.slice(0, 4)); // 最多显示4个洞察
   };
 
   const loadHistoricalData = () => {
@@ -133,11 +229,7 @@ export const EnhancedResultPage: React.FC = () => {
     return 'text-red-600';
   };
 
-  const getScoreBadgeVariant = (score: number) => {
-    if (score >= 80) return 'default';
-    if (score >= 60) return 'secondary';
-    return 'destructive';
-  };
+
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);

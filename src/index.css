@@ -171,9 +171,11 @@ button:focus-visible {
 /* Smooth transitions for layout stability */
 .layout-stable {
   min-height: calc(100vh - 4rem);
-  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  transition: opacity 0.3s ease-in-out;
   width: 100%;
   position: relative;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Enhanced hover effects */

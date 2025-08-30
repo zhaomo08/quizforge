@@ -37,7 +37,7 @@ import { SmartGenerationAssistant } from './SmartGenerationAssistant';
 import { BatchGenerationTool } from './BatchGenerationTool';
 import { useMobile, MobileUtils } from '@/utils/mobileUtils';
 
-export const GeneratePage: React.FC = () => {
+export const MobileOptimizedGeneratePage: React.FC = () => {
   const { state, dispatch } = useApp();
   const { isMobile, isTablet, screenSize, isTouchDevice } = useMobile();
   
@@ -477,36 +477,36 @@ export const GeneratePage: React.FC = () => {
           </Button>
         </div>
 
-      {/* Status and Progress */}
-      {(state.error || isGenerating) && (
-        <Alert className={`mb-6 ${state.error?.includes('成功') || state.error?.includes('🎉') ? 'border-green-200 bg-green-50 dark:bg-green-950' : ''}`}>
-          {state.error?.includes('成功') || state.error?.includes('🎉') ? (
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          ) : isGenerating ? (
-            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-          ) : (
-            <AlertCircle className="h-4 w-4" />
-          )}
-          <AlertDescription className={state.error?.includes('成功') || state.error?.includes('🎉') ? 'text-green-800 dark:text-green-200' : ''}>
-            {isGenerating ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span>{currentStep || '准备生成...'}</span>
-                  <span className="text-sm">{generationProgress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${generationProgress}%` }}
-                  />
-                </div>
-              </div>
+        {/* Status and Progress */}
+        {(state.error || isGenerating) && (
+          <Alert className={`${state.error?.includes('成功') || state.error?.includes('🎉') ? 'border-green-200 bg-green-50 dark:bg-green-950' : ''}`}>
+            {state.error?.includes('成功') || state.error?.includes('🎉') ? (
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            ) : isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
             ) : (
-              state.error
+              <AlertCircle className="h-4 w-4" />
             )}
-          </AlertDescription>
-        </Alert>
-      )}
+            <AlertDescription className={state.error?.includes('成功') || state.error?.includes('🎉') ? 'text-green-800 dark:text-green-200' : ''}>
+              {isGenerating ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className={isMobile ? 'text-sm' : ''}>{currentStep || '准备生成...'}</span>
+                    <span className="text-sm">{generationProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${generationProgress}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <span className={isMobile ? 'text-sm' : ''}>{state.error}</span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* API Key Setup - Collapsible on mobile */}
         <Card>
@@ -688,23 +688,23 @@ export const GeneratePage: React.FC = () => {
           </>
         )}
 
-      {activeTab === 'batch' && (
-        <BatchGenerationTool
-          onGenerate={handleBatchGenerate}
-          isGenerating={isGenerating}
-        />
-      )}
+        {activeTab === 'batch' && (
+          <BatchGenerationTool
+            onGenerate={handleBatchGenerate}
+            isGenerating={isGenerating}
+          />
+        )}
 
-      {activeTab === 'assistant' && (
-        <SmartGenerationAssistant
-          onApplyRecommendation={handleApplyRecommendation}
-          currentSettings={{
-            category: selectedCategory,
-            difficulty,
-            count: questionCount
-          }}
-        />
-      )}
+        {activeTab === 'assistant' && (
+          <SmartGenerationAssistant
+            onApplyRecommendation={handleApplyRecommendation}
+            currentSettings={{
+              category: selectedCategory,
+              difficulty,
+              count: questionCount
+            }}
+          />
+        )}
 
         {/* Generation Info and Tips - Only show for single generation */}
         {activeTab === 'single' && (

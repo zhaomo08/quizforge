@@ -1,0 +1,364 @@
+/* 移动端专用样式 */
+
+/* 安全区域支持 */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
+  --safe-area-inset-right: env(safe-area-inset-right);
+}
+
+/* 移动端安全区域类 */
+.pt-safe-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.pb-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.pl-safe-left {
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.pr-safe-right {
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* 触摸优化 */
+.touch-optimized {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 移动端按钮最小尺寸 */
+@media (max-width: 768px) {
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 输入框优化 */
+  input, select, textarea {
+    font-size: 16px; /* 防止iOS缩放 */
+  }
+  
+  /* 卡片间距优化 */
+  .card {
+    margin-bottom: 1rem;
+  }
+  
+  /* 文字大小调整 */
+  .mobile-text-sm {
+    font-size: 0.875rem;
+  }
+  
+  .mobile-text-xs {
+    font-size: 0.75rem;
+  }
+}
+
+/* 虚拟键盘处理 */
+.keyboard-open {
+  height: calc(100vh - var(--keyboard-height, 0px));
+}
+
+/* 滚动优化 */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 移动端模态框 */
+@media (max-width: 768px) {
+  .modal-mobile {
+    margin: 0;
+    max-height: 90vh;
+    border-radius: 1rem 1rem 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: translateY(0);
+  }
+}
+
+/* 移动端网格优化 */
+@media (max-width: 768px) {
+  .mobile-grid-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  .mobile-flex-col {
+    flex-direction: column;
+  }
+  
+  .mobile-space-y-2 > * + * {
+    margin-top: 0.5rem;
+  }
+  
+  .mobile-space-y-3 > * + * {
+    margin-top: 0.75rem;
+  }
+  
+  .mobile-space-y-4 > * + * {
+    margin-top: 1rem;
+  }
+}
+
+/* 移动端导航优化 */
+@media (max-width: 768px) {
+  .mobile-nav-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.25rem;
+  }
+  
+  .mobile-nav-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .mobile-nav-icon {
+    width: 1rem;
+    height: 1rem;
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* 移动端卡片优化 */
+@media (max-width: 768px) {
+  .mobile-card-compact {
+    padding: 1rem;
+  }
+  
+  .mobile-card-header {
+    padding-bottom: 0.75rem;
+  }
+  
+  .mobile-card-content {
+    padding-top: 0;
+  }
+}
+
+/* 移动端表单优化 */
+@media (max-width: 768px) {
+  .mobile-form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .mobile-form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+  
+  .mobile-form-input {
+    height: 3rem;
+    font-size: 1rem;
+    padding: 0.75rem;
+  }
+  
+  .mobile-form-select {
+    height: 3rem;
+    font-size: 1rem;
+  }
+}
+
+/* 移动端按钮组优化 */
+@media (max-width: 768px) {
+  .mobile-button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .mobile-button-full {
+    width: 100%;
+    height: 3rem;
+    font-size: 1rem;
+  }
+  
+  .mobile-button-compact {
+    height: 2.5rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* 移动端统计卡片 */
+@media (max-width: 768px) {
+  .mobile-stat-card {
+    padding: 0.75rem;
+    text-align: center;
+  }
+  
+  .mobile-stat-number {
+    font-size: 1.125rem;
+    font-weight: bold;
+  }
+  
+  .mobile-stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+}
+
+/* 移动端折叠面板 */
+@media (max-width: 768px) {
+  .mobile-collapsible-header {
+    cursor: pointer;
+    user-select: none;
+  }
+  
+  .mobile-collapsible-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+  }
+  
+  .mobile-collapsible-icon {
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  .mobile-collapsible-expanded .mobile-collapsible-icon {
+    transform: rotate(180deg);
+  }
+}
+
+/* 移动端加载状态 */
+@media (max-width: 768px) {
+  .mobile-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  
+  .mobile-loading-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    max-width: 80%;
+  }
+}
+
+/* 移动端进度条 */
+@media (max-width: 768px) {
+  .mobile-progress-container {
+    margin: 0.5rem 0;
+  }
+  
+  .mobile-progress-bar {
+    height: 0.5rem;
+    background: #e5e7eb;
+    border-radius: 0.25rem;
+    overflow: hidden;
+  }
+  
+  .mobile-progress-fill {
+    height: 100%;
+    background: #3b82f6;
+    transition: width 0.3s ease-in-out;
+  }
+}
+
+/* 移动端提示信息 */
+@media (max-width: 768px) {
+  .mobile-alert {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .mobile-alert-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+  
+  .mobile-alert-content {
+    font-size: 0.875rem;
+    margin-left: 0.5rem;
+  }
+}
+
+/* 移动端徽章 */
+@media (max-width: 768px) {
+  .mobile-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+  }
+}
+
+/* 移动端图标 */
+@media (max-width: 768px) {
+  .mobile-icon-sm {
+    width: 1rem;
+    height: 1rem;
+  }
+  
+  .mobile-icon-md {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  .mobile-icon-lg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+/* 移动端间距工具类 */
+@media (max-width: 768px) {
+  .mobile-p-2 { padding: 0.5rem; }
+  .mobile-p-3 { padding: 0.75rem; }
+  .mobile-p-4 { padding: 1rem; }
+  
+  .mobile-m-2 { margin: 0.5rem; }
+  .mobile-m-3 { margin: 0.75rem; }
+  .mobile-m-4 { margin: 1rem; }
+  
+  .mobile-mb-2 { margin-bottom: 0.5rem; }
+  .mobile-mb-3 { margin-bottom: 0.75rem; }
+  .mobile-mb-4 { margin-bottom: 1rem; }
+  
+  .mobile-mt-2 { margin-top: 0.5rem; }
+  .mobile-mt-3 { margin-top: 0.75rem; }
+  .mobile-mt-4 { margin-top: 1rem; }
+}
+
+/* 移动端隐藏/显示 */
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none;
+  }
+  
+  .mobile-block {
+    display: block;
+  }
+  
+  .mobile-flex {
+    display: flex;
+  }
+  
+  .mobile-grid {
+    display: grid;
+  }
+}
+
+/* 桌面端隐藏移动端元素 */
+@media (min-width: 769px) {
+  .desktop-hidden {
+    display: none;
+  }
+}

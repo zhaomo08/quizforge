@@ -9,8 +9,10 @@ import { ResultPage } from '@/components/ResultPage';
 import { WrongAnswersPage } from '@/components/WrongAnswersPage';
 import { GeneratePage } from '@/components/GeneratePage';
 import { ManagePage } from '@/components/ManagePage';
+import { AnalyticsPage } from '@/components/AnalyticsPage';
 import { Toaster } from '@/components/ui/sonner';
 import './App.css';
+import './dark-mode-fix.css';
 
 function AppContent() {
   const { state } = useApp();
@@ -19,6 +21,8 @@ function AppContent() {
     switch (state.currentPage) {
       case 'home':
         return <HomePage />;
+      case 'analytics':
+        return <AnalyticsPage />;
       case 'category':
         return <CategorySelection />;
       case 'test-setup':
@@ -39,7 +43,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 dark:bg-gradient-to-br transition-colors duration-300">
       <Navigation />
       <main className="main-container content-width-stable">
         <div className="page-transition-stable">

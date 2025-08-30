@@ -105,30 +105,49 @@ button:focus-visible {
     --radius: 0.5rem;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* 主背景 - 更深的现代深色 */
+    --background: 222 15% 6%;
+    --foreground: 220 12% 96%;
+    
+    /* 卡片 - 层次分明的深色背景 */
+    --card: 222 15% 10%;
+    --card-foreground: 220 12% 96%;
+    
+    /* 弹出层 */
+    --popover: 222 15% 10%;
+    --popover-foreground: 220 12% 96%;
+    
+    /* 主色调 - 优化的蓝色，更好的对比度 */
+    --primary: 217 91% 58%;
+    --primary-foreground: 222 15% 6%;
+    
+    /* 次要色调 - 更好的层次感 */
+    --secondary: 222 15% 14%;
+    --secondary-foreground: 220 12% 92%;
+    
+    /* 静音色调 */
+    --muted: 222 15% 14%;
+    --muted-foreground: 220 9% 68%;
+    
+    /* 强调色 - 悬停和交互状态 */
+    --accent: 222 15% 16%;
+    --accent-foreground: 220 12% 96%;
+    
+    /* 危险色 */
+    --destructive: 0 75% 58%;
+    --destructive-foreground: 220 12% 96%;
+    
+    /* 边框和输入 - 更细腻的边框 */
+    --border: 222 15% 18%;
+    --input: 222 15% 14%;
+    --ring: 217 91% 58%;
+    
+    /* 图表颜色 - 深色模式优化 */
+    --chart-1: 217 91% 62%;
+    --chart-2: 142 76% 52%;
+    --chart-3: 47 96% 62%;
+    --chart-4: 280 87% 67%;
+    --chart-5: 340 82% 62%;
   }
 }
 
@@ -195,5 +214,435 @@ button:focus-visible {
 @supports (backdrop-filter: blur(10px)) {
   .backdrop-blur-md {
     backdrop-filter: blur(12px);
+  }
+}
+
+/* Dark mode transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode specific styles */
+.dark {
+  color-scheme: dark;
+}
+
+/* 优化的深色模式阴影 - 更现代的层次感 */
+.dark .shadow-sm {
+  box-shadow: 
+    0 1px 3px 0 rgba(0, 0, 0, 0.5),
+    0 1px 2px -1px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.dark .shadow-md {
+  box-shadow: 
+    0 4px 8px -2px rgba(0, 0, 0, 0.5),
+    0 2px 4px -1px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.dark .shadow-lg {
+  box-shadow: 
+    0 10px 20px -5px rgba(0, 0, 0, 0.5),
+    0 4px 8px -2px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.dark .shadow-xl {
+  box-shadow: 
+    0 20px 30px -8px rgba(0, 0, 0, 0.6),
+    0 8px 16px -4px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* 现代深色模式渐变背景 */
+.dark .bg-gradient-to-br {
+  background: linear-gradient(135deg, 
+    hsl(220, 13%, 9%) 0%,
+    hsl(220, 13%, 11%) 25%,
+    hsl(220, 13%, 13%) 50%,
+    hsl(220, 13%, 15%) 100%
+  );
+}
+
+/* 深色模式特定的颜色覆盖 */
+.dark .text-gray-900 {
+  color: hsl(220, 9%, 95%) !important;
+}
+
+.dark .text-gray-800 {
+  color: hsl(220, 9%, 90%) !important;
+}
+
+.dark .text-gray-700 {
+  color: hsl(220, 9%, 85%) !important;
+}
+
+.dark .text-gray-600 {
+  color: hsl(220, 9%, 70%) !important;
+}
+
+.dark .text-gray-500 {
+  color: hsl(220, 9%, 60%) !important;
+}
+
+/* 深色模式背景色优化 */
+.dark .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.08) !important;
+}
+
+.dark .bg-green-50 {
+  background-color: rgba(34, 197, 94, 0.08) !important;
+}
+
+.dark .bg-orange-50 {
+  background-color: rgba(249, 115, 22, 0.08) !important;
+}
+
+.dark .bg-purple-50 {
+  background-color: rgba(168, 85, 247, 0.08) !important;
+}
+
+.dark .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+.dark .bg-yellow-50 {
+  background-color: rgba(234, 179, 8, 0.08) !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: hsl(220, 13%, 16%) !important;
+}
+
+/* 深色模式边框色 */
+.dark .border-blue-200 {
+  border-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+.dark .border-green-200 {
+  border-color: rgba(34, 197, 94, 0.2) !important;
+}
+
+.dark .border-orange-200 {
+  border-color: rgba(249, 115, 22, 0.2) !important;
+}
+
+.dark .border-purple-200 {
+  border-color: rgba(168, 85, 247, 0.2) !important;
+}
+
+.dark .border-red-200 {
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.dark .border-yellow-200 {
+  border-color: rgba(234, 179, 8, 0.2) !important;
+}
+
+.dark .border-gray-200 {
+  border-color: hsl(220, 13%, 20%) !important;
+}
+
+.dark .border-gray-300 {
+  border-color: hsl(220, 13%, 25%) !important;
+}
+
+/* 深色模式悬停效果 */
+.dark .hover\:bg-gray-50:hover {
+  background-color: hsl(220, 13%, 18%) !important;
+}
+
+.dark .hover\:bg-blue-50:hover {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+}
+
+.dark .hover\:bg-green-50:hover {
+  background-color: rgba(34, 197, 94, 0.12) !important;
+}
+
+.dark .hover\:bg-orange-50:hover {
+  background-color: rgba(249, 115, 22, 0.12) !important;
+}
+
+.dark .hover\:bg-purple-50:hover {
+  background-color: rgba(168, 85, 247, 0.12) !important;
+}
+
+/* 深色模式文字颜色优化 */
+.dark .text-blue-600 {
+  color: hsl(217, 91%, 70%) !important;
+}
+
+.dark .text-green-600 {
+  color: hsl(142, 76%, 65%) !important;
+}
+
+.dark .text-orange-600 {
+  color: hsl(25, 95%, 70%) !important;
+}
+
+.dark .text-purple-600 {
+  color: hsl(280, 87%, 75%) !important;
+}
+
+.dark .text-red-600 {
+  color: hsl(0, 75%, 70%) !important;
+}
+
+.dark .text-blue-800 {
+  color: hsl(217, 91%, 80%) !important;
+}
+
+.dark .text-green-800 {
+  color: hsl(142, 76%, 75%) !important;
+}
+
+.dark .text-red-800 {
+  color: hsl(0, 75%, 80%) !important;
+}
+
+.dark .text-yellow-800 {
+  color: hsl(47, 96%, 75%) !important;
+}
+/* 深色模式下的特殊优化 */
+.dark {
+  /* 改善滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(220, 13%, 25%) hsl(220, 13%, 16%);
+}
+
+.dark ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: hsl(220, 13%, 16%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(220, 13%, 25%);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(220, 13%, 30%);
+}
+
+/* 深色模式下的选择文本样式 */
+.dark ::selection {
+  background-color: hsl(217, 91%, 60%, 0.3);
+  color: hsl(220, 9%, 95%);
+}
+
+/* 深色模式下的焦点环 */
+.dark *:focus-visible {
+  outline: 2px solid hsl(217, 91%, 60%);
+  outline-offset: 2px;
+}
+
+/* 深色模式下的渐变优化 */
+.dark .bg-gradient-to-br.from-blue-100.to-blue-200 {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.15) 0%, 
+    rgba(59, 130, 246, 0.25) 100%
+  ) !important;
+}
+
+/* 深色模式下的图标颜色优化 */
+.dark .text-blue-600 {
+  color: hsl(217, 91%, 65%) !important;
+}
+
+.dark .text-green-600 {
+  color: hsl(142, 76%, 60%) !important;
+}
+
+.dark .text-orange-600 {
+  color: hsl(25, 95%, 65%) !important;
+}
+
+.dark .text-purple-600 {
+  color: hsl(280, 87%, 70%) !important;
+}
+
+/* 深色模式下的按钮优化 */
+.dark .bg-blue-600 {
+  background-color: hsl(217, 91%, 58%) !important;
+}
+
+.dark .hover\:bg-blue-700:hover {
+  background-color: hsl(217, 91%, 52%) !important;
+}
+
+.dark .bg-green-600 {
+  background-color: hsl(142, 76%, 52%) !important;
+}
+
+.dark .hover\:bg-green-700:hover {
+  background-color: hsl(142, 76%, 47%) !important;
+}
+
+.dark .bg-orange-600 {
+  background-color: hsl(25, 95%, 58%) !important;
+}
+
+.dark .hover\:bg-orange-700:hover {
+  background-color: hsl(25, 95%, 52%) !important;
+}
+
+/* 深色模式导航栏特殊优化 */
+.dark nav {
+  background: rgba(15, 17, 22, 0.98);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 深色模式按钮状态优化 */
+.dark .bg-primary {
+  background: linear-gradient(135deg, hsl(217, 91%, 58%) 0%, hsl(217, 91%, 52%) 100%);
+  box-shadow: 
+    0 2px 8px rgba(59, 130, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.dark .bg-primary:hover {
+  background: linear-gradient(135deg, hsl(217, 91%, 52%) 0%, hsl(217, 91%, 47%) 100%);
+  box-shadow: 
+    0 4px 12px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* 深色模式 ghost 按钮优化 */
+.dark button[data-variant="ghost"] {
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark button[data-variant="ghost"]:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}/* 
+强制修复深色模式下的卡片背景问题 */
+.dark * {
+  /* 覆盖所有白色背景 */
+}
+
+.dark .bg-white,
+.dark [style*="background-color: white"],
+.dark [style*="background-color: #fff"],
+.dark [style*="background-color: #ffffff"] {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+}
+
+/* 确保卡片组件使用正确的深色背景 */
+.dark [data-radix-collection-item],
+.dark [data-state],
+.dark .card,
+.dark [class*="card"] {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--card-foreground)) !important;
+}
+
+/* 修复统计卡片内的图标背景 */
+.dark .bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+
+.dark .bg-green-100 {
+  background-color: rgba(34, 197, 94, 0.15) !important;
+}
+
+.dark .bg-orange-100 {
+  background-color: rgba(249, 115, 22, 0.15) !important;
+}
+
+.dark .bg-purple-100 {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+}
+
+/* 修复文字颜色 */
+.dark .text-gray-900 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark .text-gray-600 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* 确保所有UI组件使用正确的深色主题 */
+.dark [class*="ui-"] {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+}/* 深色
+模式导航栏增强 */
+.dark .navigation-container {
+  background: rgba(15, 17, 22, 0.95);
+  backdrop-filter: blur(20px);
+}
+
+/* 深色模式按钮增强效果 */
+.dark button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark button:hover {
+  transform: translateY(-1px);
+}
+
+/* 深色模式图标优化 */
+.dark .text-blue-600 svg,
+.dark .text-primary svg {
+  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.3));
+}
+
+/* 深色模式品牌标题优化 */
+.dark .text-xl.font-bold {
+  background: linear-gradient(135deg, 
+    hsl(220, 12%, 96%) 0%, 
+    hsl(220, 9%, 85%) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 深色模式毛玻璃效果增强 */
+.dark .backdrop-blur-md {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* 深色模式焦点状态优化 */
+.dark *:focus-visible {
+  outline: 2px solid hsl(217, 91%, 58%);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+
+/* 深色模式选择文本优化 */
+.dark ::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: hsl(220, 12%, 96%);
+}
+
+/* 深色模式动画优化 */
+.dark .animate-fade-in {
+  animation: dark-fade-in 0.6s ease-out;
+}
+
+@keyframes dark-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }

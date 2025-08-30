@@ -4,11 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Brain, Target, BookOpen, BarChart3, Zap, Award, TrendingUp } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { testUtils } from '@/utils/testUtils';
+import { LearningInsights } from '@/components/LearningInsights';
+import { notificationSystem } from '@/utils/notificationSystem';
 
 export const HomePage: React.FC = () => {
   const { dispatch } = useApp();
 
   const stats = testUtils.getUserStats();
+
+  // Initialize notifications on component mount
+  React.useEffect(() => {
+    notificationSystem.checkForNotifications();
+  }, []);
 
   const features = [
     {
@@ -50,6 +57,13 @@ export const HomePage: React.FC = () => {
       action: () => dispatch({ type: 'SET_PAGE', payload: 'category' }),
     },
     {
+      title: '学习分析',
+      description: '查看详细的学习数据和进度',
+      icon: BarChart3,
+      color: 'bg-purple-600 hover:bg-purple-700',
+      action: () => dispatch({ type: 'SET_PAGE', payload: 'analytics' }),
+    },
+    {
       title: 'AI出题',
       description: '使用AI生成新的面试题目',
       icon: Brain,
@@ -74,10 +88,10 @@ export const HomePage: React.FC = () => {
             <Brain className="h-12 w-12 text-blue-600" />
           </div>
         </div>
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-300 bg-clip-text text-transparent">
           AI驱动的面试题自测平台
         </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
+        <p className="text-xl text-gray-600 dark:text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed">
           利用先进的AI技术，为你生成个性化的面试题目，帮助你在技术面试中脱颖而出
         </p>
       </div>
@@ -146,7 +160,7 @@ export const HomePage: React.FC = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 animate-slide-up" style={{animationDelay: '0.2s'}}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 animate-slide-up" style={{animationDelay: '0.2s'}}>
         {quickActions.map(({ title, description, icon: Icon, color, action }) => (
           <Card key={title} className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl group">
             <CardContent className="p-6">
@@ -166,6 +180,69 @@ export const HomePage: React.FC = () => {
           </Card>
         ))}
       </div>
+
+      {/* Learning Insights */}
+      {stats.totalTests > 0 && (
+        <div className="mb-12 animate-slide-up" style={{animationDelay: '0.3s'}}>
+          <LearningInsights onNavigate={(page) => dispatch({ type: 'SET_PAGE', payload: page })} />
+        </div>
+      )}
+
+      {/* Quick Analytics Preview */}
+      {stats.totalTests > 5 && (
+        <Card className="mb-12 animate-slide-up" style={{animationDelay: '0.4s'}}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center space-x-2">
+                  <BarChart3 className="h-5 w-5" />
+                  <span>学习趋势</span>
+                </CardTitle>
+                <CardDescription>
+                  最近的学习表现和进步情况
+                </CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => dispatch({ type: 'SET_PAGE', payload: 'analytics' })}
+              >
+                查看详细分析
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600 mb-1">
+                  {Object.keys(stats.categoryStats).length}
+                </div>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">
+                  学习领域
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600 mb-1">
+                  {Math.round((stats.correctAnswers / stats.totalQuestions) * 100)}%
+                </div>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">
+                  总体正确率
+                </p>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600 mb-1">
+                  {stats.totalWrongAnswers}
+                </div>
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">
+                  待复习错题
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Features */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-slide-up" style={{animationDelay: '0.4s'}}>

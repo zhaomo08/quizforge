@@ -6,7 +6,9 @@
         "mcp-server-fetch"
       ],
       "disabled": false,
-      "autoApprove": []
+      "autoApprove": [
+        "fetch"
+      ]
     },
     "Context7": {
       "command": "npx",

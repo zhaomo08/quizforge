@@ -227,9 +227,12 @@ export const GeneratePage: React.FC = () => {
     setCurrentStep('生成预览题目...');
     
     try {
+      // 预览生成的题目数量：最少3道，最多与用户选择数量一致，但不超过10道
+      const previewCount = Math.min(Math.max(3, parseInt(questionCount)), 10);
+      
       const questions = await AIService.generateQuestions({
         category: selectedCategory,
-        count: 3, // 预览只生成3道题
+        count: previewCount,
         difficulty,
         apiKey,
       });
@@ -244,6 +247,68 @@ export const GeneratePage: React.FC = () => {
       });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSavePreviewQuestions = () => {
+    if (previewQuestions.length === 0) return;
+
+    const startTime = Date.now();
+    const modelInfo = AIService.getCurrentModelInfo();
+
+    try {
+      setCurrentStep('保存预览题目到本地...');
+      
+      // 质量分析
+      const qualityScores = previewQuestions.map(q => GenerationAnalytics.evaluateQuestionQuality(q));
+      const averageQuality = qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length;
+
+      // 重复检测
+      const duplicateResult = GenerationAnalytics.detectDuplicates(previewQuestions);
+
+      storage.addQuestions(previewQuestions);
+      dispatch({ type: 'ADD_QUESTIONS', payload: previewQuestions });
+
+      // 记录生成历史
+      const generationTime = Date.now() - startTime;
+      GenerationAnalytics.recordGeneration({
+        category: selectedCategory,
+        difficulty,
+        requestedCount: previewQuestions.length,
+        actualCount: previewQuestions.length,
+        modelUsed: modelInfo.name,
+        generationTime,
+        qualityScore: averageQuality,
+        duplicateCount: duplicateResult.duplicateCount
+      });
+      
+      // 设置分析结果
+      setQualityAnalysis({
+        averageQuality,
+        qualityScores,
+        questions: previewQuestions
+      });
+      setDuplicateDetection(duplicateResult);
+      
+      setShowPreview(false);
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: `🎉 成功保存 ${previewQuestions.length} 道 ${categories.find(c => c.id === selectedCategory)?.name} 题目！平均质量: ${Math.round(averageQuality)}%` 
+      });
+      
+      // Clear success message after 8 seconds
+      setTimeout(() => {
+        dispatch({ type: 'CLEAR_ERROR' });
+        setCurrentStep('');
+      }, 8000);
+      
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : '保存题目失败' 
+      });
+    } finally {
+      updateModelHealth();
     }
   };
 
@@ -738,7 +803,7 @@ export const GeneratePage: React.FC = () => {
                           <li>• AI将根据选择的类别和难度生成相应的面试题目</li>
                           <li>• 每道题目包含题干、4个选项、正确答案和详细解析</li>
                           <li>• 生成的题目会自动保存到本地题库中</li>
-                          <li>• 支持预览功能，确保生成质量符合预期</li>
+                          <li>• 预览功能：生成3-10道题目供预览（根据选择数量调整）</li>
                         </ul>
                       </div>
                     </div>
@@ -841,7 +906,7 @@ export const GeneratePage: React.FC = () => {
                   size={isMobile ? 'default' : 'lg'}
                 >
                   <Eye className="h-5 w-5 mr-2" />
-                  预览效果
+                  预览 {Math.min(Math.max(3, parseInt(questionCount)), 10)} 道题目
                 </Button>
               </div>
               
@@ -869,7 +934,9 @@ export const GeneratePage: React.FC = () => {
             <Card className={`w-full ${isMobile ? 'max-h-[90vh]' : 'max-w-4xl max-h-[80vh]'} overflow-hidden`}>
               <CardHeader className={isMobile ? 'pb-3' : ''}>
                 <div className="flex items-center justify-between">
-                  <CardTitle className={isMobile ? 'text-lg' : ''}>预览生成效果</CardTitle>
+                  <CardTitle className={isMobile ? 'text-lg' : ''}>
+                    预览生成效果 ({previewQuestions.length} 道题目)
+                  </CardTitle>
                   <Button 
                     variant="outline" 
                     onClick={() => setShowPreview(false)}
@@ -879,7 +946,7 @@ export const GeneratePage: React.FC = () => {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="overflow-y-auto scroll-container">
+              <CardContent className="overflow-y-auto max-h-[60vh] p-6 preview-scroll">
                 <div className="space-y-4">
                   {previewQuestions.map((question, index) => (
                     <div key={index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -915,13 +982,20 @@ export const GeneratePage: React.FC = () => {
                     关闭预览
                   </Button>
                   <Button 
+                    variant="outline"
                     onClick={() => {
                       setShowPreview(false);
                       handleGenerate();
                     }}
                     className={isMobile ? 'w-full' : ''}
                   >
-                    确认生成
+                    重新生成 {questionCount} 道题目
+                  </Button>
+                  <Button 
+                    onClick={handleSavePreviewQuestions}
+                    className={isMobile ? 'w-full' : ''}
+                  >
+                    保存这些题目
                   </Button>
                 </div>
               </CardContent>

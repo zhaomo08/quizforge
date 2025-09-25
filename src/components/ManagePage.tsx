@@ -12,7 +12,9 @@ import {
   BarChart3,
   ArrowLeft,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { storage } from '@/utils/storage';
@@ -22,6 +24,23 @@ export const ManagePage: React.FC = () => {
   const { state, dispatch } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  
+  // 分页相关状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 检测移动端
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const questions = state.questions;
   const stats = testUtils.getUserStats();
@@ -35,6 +54,17 @@ export const ManagePage: React.FC = () => {
     const matchesCategory = selectedCategory === 'all' || q.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // 分页逻辑
+  const totalPages = Math.ceil(filteredQuestions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPageItems = filteredQuestions.slice(startIndex, endIndex);
+
+  // 重置分页当搜索或筛选改变时
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
 
   // Group questions by category for stats
   const categoryStats = categories.slice(1).map(category => {
@@ -262,21 +292,56 @@ export const ManagePage: React.FC = () => {
               </div>
             </div>
             
-            <div className="sm:w-48">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">所有类别</option>
-                {categories.slice(1).map(category => (
-                  <option key={category} value={category}>
-                    {getCategoryName(category)}
-                  </option>
-                ))}
-              </select>
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-2">
+              <div className="sm:w-48">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="all">所有类别</option>
+                  {categories.slice(1).map(category => (
+                    <option key={category} value={category}>
+                      {getCategoryName(category)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sm:w-32">
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value={5}>5条/页</option>
+                  <option value={10}>10条/页</option>
+                  <option value={20}>20条/页</option>
+                  <option value={50}>50条/页</option>
+                </select>
+              </div>
             </div>
           </div>
+
+          {/* Pagination Info */}
+          {filteredQuestions.length > 0 && (
+            <Card className="mb-4">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <span>
+                    显示第 {startIndex + 1}-{Math.min(endIndex, filteredQuestions.length)} 条，
+                    共 {filteredQuestions.length} 道题目
+                  </span>
+                  <span>
+                    第 {currentPage} 页，共 {totalPages} 页
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Questions List */}
           {filteredQuestions.length === 0 ? (
@@ -288,14 +353,10 @@ export const ManagePage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-gray-600 mb-4">
-                共找到 {filteredQuestions.length} 道题目
-              </p>
-              
-              {filteredQuestions.slice(0, 20).map(question => (
-                <div key={question.id} className="border rounded-lg p-4">
+              {currentPageItems.map(question => (
+                <div key={question.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-medium text-gray-900 flex-1 mr-4">
+                    <h3 className="font-medium text-gray-900 dark:text-gray-100 flex-1 mr-4">
                       {question.question}
                     </h3>
                     <div className="flex space-x-2">
@@ -308,18 +369,129 @@ export const ManagePage: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
                     <p>正确答案: {String.fromCharCode(65 + question.correctAnswer)} - {question.options[question.correctAnswer]}</p>
                   </div>
                 </div>
               ))}
               
-              {filteredQuestions.length > 20 && (
-                <div className="text-center py-4">
-                  <p className="text-gray-500">
-                    只显示前20道题目，使用搜索功能查找特定题目
-                  </p>
-                </div>
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <Card className="mt-6">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="flex items-center space-x-2">
+                        {!isMobile && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            title="第一页"
+                          >
+                            1
+                          </Button>
+                        )}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          {isMobile ? '' : '上一页'}
+                        </Button>
+                        
+                        <div className="flex items-center space-x-1">
+                          {/* 页码按钮 - 移动端显示更少页码 */}
+                          {Array.from({ length: Math.min(isMobile ? 3 : 5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            const maxVisible = isMobile ? 3 : 5;
+                            
+                            if (totalPages <= maxVisible) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= Math.floor(maxVisible / 2) + 1) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - Math.floor(maxVisible / 2)) {
+                              pageNum = totalPages - maxVisible + 1 + i;
+                            } else {
+                              pageNum = currentPage - Math.floor(maxVisible / 2) + i;
+                            }
+                            
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={currentPage === pageNum ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCurrentPage(pageNum)}
+                                className="w-8 h-8 p-0"
+                              >
+                                {pageNum}
+                              </Button>
+                            );
+                          })}
+                          
+                          {totalPages > (isMobile ? 3 : 5) && 
+                           currentPage < totalPages - Math.floor((isMobile ? 3 : 5) / 2) && (
+                            <>
+                              <span className="px-2 text-gray-400">...</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(totalPages)}
+                                className="w-8 h-8 p-0"
+                              >
+                                {totalPages}
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          {isMobile ? '' : '下一页'}
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                        
+                        {!isMobile && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            title="最后一页"
+                          >
+                            {totalPages}
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                        <span className="hidden sm:inline">跳转到</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={totalPages}
+                          value={currentPage}
+                          onChange={(e) => {
+                            const page = parseInt(e.target.value);
+                            if (page >= 1 && page <= totalPages) {
+                              setCurrentPage(page);
+                            }
+                          }}
+                          className="w-16 px-2 py-1 border border-gray-200 dark:border-gray-600 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                          placeholder="页码"
+                        />
+                        <span>页</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
           )}

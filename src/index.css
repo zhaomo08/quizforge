@@ -1,12 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 /* 导入增强动画样式 */
 @import './styles/enhanced-animations.css';
 
 /* 导入移动端优化样式 */
 @import './styles/mobile.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -412,6 +412,83 @@ button:focus-visible {
 .dark .text-yellow-800 {
   color: hsl(47, 96%, 75%) !important;
 }
+/* 滚动条样式优化 */
+/* 浅色模式滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  border: 1px solid #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+::-webkit-scrollbar-corner {
+  background: #f1f5f9;
+}
+
+/* Firefox 滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* 预览滚动区域特殊样式 */
+.preview-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: #94a3b8 #f8fafc;
+}
+
+.preview-scroll::-webkit-scrollbar {
+  width: 12px;
+}
+
+.preview-scroll::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.preview-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+  border-radius: 6px;
+  border: 2px solid #f8fafc;
+}
+
+.preview-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #64748b 0%, #475569 100%);
+}
+
+/* 深色模式预览滚动 */
+.dark .preview-scroll {
+  scrollbar-color: hsl(220, 13%, 35%) hsl(220, 13%, 18%);
+}
+
+.dark .preview-scroll::-webkit-scrollbar-track {
+  background: hsl(220, 13%, 18%);
+  border: 1px solid hsl(220, 13%, 22%);
+}
+
+.dark .preview-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, hsl(220, 13%, 35%) 0%, hsl(220, 13%, 30%) 100%);
+  border: 2px solid hsl(220, 13%, 18%);
+}
+
+.dark .preview-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, hsl(220, 13%, 40%) 0%, hsl(220, 13%, 35%) 100%);
+}
+
 /* 深色模式下的特殊优化 */
 .dark {
   /* 改善滚动条样式 */
@@ -421,19 +498,26 @@ button:focus-visible {
 
 .dark ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 .dark ::-webkit-scrollbar-track {
   background: hsl(220, 13%, 16%);
+  border-radius: 4px;
 }
 
 .dark ::-webkit-scrollbar-thumb {
   background: hsl(220, 13%, 25%);
   border-radius: 4px;
+  border: 1px solid hsl(220, 13%, 16%);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: hsl(220, 13%, 30%);
+}
+
+.dark ::-webkit-scrollbar-corner {
+  background: hsl(220, 13%, 16%);
 }
 
 /* 深色模式下的选择文本样式 */

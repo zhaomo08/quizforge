@@ -1,5 +1,6 @@
 
 import { AppProvider, useApp } from '@/contexts/AppContext';
+import { AuthProvider } from '@/components/auth/AuthProvider';
 import { Navigation } from '@/components/Navigation';
 import { HomePage } from '@/components/HomePage';
 import { CategorySelection } from '@/components/CategorySelection';
@@ -13,6 +14,7 @@ import { GeneratePage } from '@/components/GeneratePage';
 import { ManagePage } from '@/components/ManagePage';
 import { AnalyticsPage } from '@/components/AnalyticsPage';
 import { SmartLearningAssistant } from '@/components/SmartLearningAssistant';
+import { GoogleOAuthManager } from '@/components/auth/GoogleOAuthManager';
 import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 import './dark-mode-fix.css';
@@ -42,6 +44,8 @@ function AppContent() {
         return <ManagePage />;
       case 'learning-assistant':
         return <SmartLearningAssistant />;
+      case 'google-oauth':
+        return <GoogleOAuthManager />;
       default:
         return <HomePage />;
     }
@@ -62,9 +66,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AuthProvider requireAuth={false}>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AuthProvider>
   );
 }
 

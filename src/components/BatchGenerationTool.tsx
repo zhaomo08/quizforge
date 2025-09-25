@@ -8,13 +8,13 @@ import {
   Plus, 
   Minus, 
   Play, 
-  Pause,
   CheckCircle,
   AlertCircle,
   Loader2,
   Settings,
   Save,
-  Upload
+  Upload,
+  Download
 } from 'lucide-react';
 
 interface BatchGenerationItem {
@@ -70,7 +70,7 @@ export const BatchGenerationTool: React.FC<BatchGenerationToolProps> = ({
 
   const addBatchItem = () => {
     const newItem: BatchGenerationItem = {
-      id: `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `batch_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       category: 'java',
       difficulty: 'medium',
       count: 10,
@@ -132,6 +132,58 @@ export const BatchGenerationTool: React.FC<BatchGenerationToolProps> = ({
     const updatedTemplates = savedTemplates.filter(t => t.name !== templateName);
     setSavedTemplates(updatedTemplates);
     localStorage.setItem('batch_generation_templates', JSON.stringify(updatedTemplates));
+  };
+
+  const handleImportTemplate = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedTemplate = JSON.parse(e.target?.result as string);
+        
+        // 验证模板格式
+        if (!importedTemplate.name || !Array.isArray(importedTemplate.items)) {
+          alert('导入失败：模板格式不正确');
+          return;
+        }
+
+        // 检查是否已存在同名模板
+        const existingTemplate = savedTemplates.find(t => t.name === importedTemplate.name);
+        if (existingTemplate) {
+          if (!confirm(`模板 "${importedTemplate.name}" 已存在，是否覆盖？`)) {
+            return;
+          }
+        }
+
+        // 更新模板列表
+        const updatedTemplates = existingTemplate 
+          ? savedTemplates.map(t => t.name === importedTemplate.name ? importedTemplate : t)
+          : [...savedTemplates, importedTemplate];
+        
+        setSavedTemplates(updatedTemplates);
+        localStorage.setItem('batch_generation_templates', JSON.stringify(updatedTemplates));
+        
+        alert('模板导入成功！');
+      } catch (error) {
+        alert('导入失败：文件格式不正确');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset input
+    event.target.value = '';
+  };
+
+  const handleExportTemplate = (template: typeof savedTemplates[0]) => {
+    const dataStr = JSON.stringify(template, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `batch-template-${template.name}-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
   };
 
   const getTotalQuestions = () => {
@@ -338,9 +390,33 @@ export const BatchGenerationTool: React.FC<BatchGenerationToolProps> = ({
       {/* 模板管理 */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Save className="h-5 w-5 mr-2" />
-            生成模板
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Save className="h-5 w-5 mr-2" />
+              生成模板
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportTemplate}
+                className="hidden"
+                id="import-template"
+              />
+              <label htmlFor="import-template">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isGenerating}
+                  asChild
+                >
+                  <div className="cursor-pointer">
+                    <Upload className="h-4 w-4 mr-2" />
+                    导入模板
+                  </div>
+                </Button>
+              </label>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -404,6 +480,15 @@ export const BatchGenerationTool: React.FC<BatchGenerationToolProps> = ({
                     >
                       <Upload className="h-4 w-4 mr-2" />
                       加载
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExportTemplate(template)}
+                      disabled={isGenerating}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      导出
                     </Button>
                     <Button
                       variant="ghost"

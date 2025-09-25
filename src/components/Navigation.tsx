@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Home, Brain, BookOpen, BarChart3, Settings } from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
+import { Home, Brain, BookOpen, BarChart3, Settings, LogIn, Code, Shield } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { UserMenu } from '@/components/auth/UserMenu';
+import { AuthPage } from '@/components/auth/AuthPage';
 import { ThemeToggle } from './ThemeToggle';
 import { NotificationBell } from './NotificationCenter';
 
@@ -55,8 +65,32 @@ export const Navigation: React.FC = () => {
             {/* Notifications */}
             <NotificationBell />
             
+            {/* Developer Tools */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center space-x-1">
+                  <Code className="h-4 w-4" />
+                  <span className="hidden sm:inline">开发工具</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => handleNavigation('google-oauth')}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Google OAuth 管理
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => window.open('/GOOGLE_OAUTH_COMPLETE_SETUP.md', '_blank')}>
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  OAuth 设置文档
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             {/* Theme Toggle */}
             <ThemeToggle />
+            
+            {/* User Menu */}
+            <UserMenu />
             
             {/* Mobile Navigation */}
             <div className="md:hidden flex space-x-1">

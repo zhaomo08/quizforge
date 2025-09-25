@@ -1,66 +1,65 @@
 import { Question } from '@/types';
+import { parseModelResponse } from '@/utils/ai/responseParser';
+import { modelRegistry, ModelConfig } from '@/utils/ai/modelRegistry';
+import { resolveApiKey, getProjectApiKey } from '@/utils/ai/apiKeyResolver';
 
 export interface AIGenerateRequest {
   category: string;
   count: number;
   difficulty?: string;
-  apiKey: string;
+  apiKey?: string; // 现在是可选的
+  userId?: string; // 用户ID，用于判断是否使用内置API Key
 }
 
 export class AIService {
-  // 免费模型列表，按性能和稳定性排序
-  private static readonly FREE_MODELS = [
-    {
-      id: 'deepseek/deepseek-chat-v3.1:free',
-      name: 'DeepSeek V3.1',
-      description: 'DeepSeek免费模型',
-      maxTokens: 4000,
-    },
-    {
-      id: 'google/gemini-2.0-flash-exp:free',
-      name: 'Gemini 2.5 Flash',
-      description: 'Google免费模型',
-      maxTokens: 3500,
-    },
-    {
-      id: 'moonshotai/kimi-k2:free',
-      name: 'Kimi K2',
-      description: 'Moonshot免费模型',
-      maxTokens: 3000,
-    },
-    {
-      id: 'mistralai/mistral-small-3.1-24b-instruct:free',
-      name: 'Mistral small',
-      description: 'Mistral免费模型',
-      maxTokens: 3000,
-    },
-    {
-      id: 'openai/gpt-oss-120b:free',
-      name: 'GPT-OSS-120B',
-      description: 'OpenRouter免费模型',
-      maxTokens: 2500,
-    },
-  ];
+  // 调试方法：获取当前 API Key
+  static getProjectApiKey(): string {
+    const key = getProjectApiKey();
+    console.log(
+      '🔑 当前项目 API Key:',
+      key ? `${key.substring(0, 8)}...${key.substring(key.length - 4)}` : '未设置'
+    );
+    return key;
+  }
 
-  private static currentModelIndex = 0;
-  private static modelFailureCount = new Map<string, number>();
-  private static lastSuccessfulModel = '';
+  // 获取要使用的 API Key
+  private static getApiKey(userApiKey?: string, userId?: string): string {
+    const logger = (message: string, value?: unknown) => {
+      if (typeof value !== 'undefined') {
+        console.log(message, value);
+      } else {
+        console.log(message);
+      }
+    };
 
-  private static async callOpenRouter(prompt: string, apiKey: string, retryCount = 0): Promise<{ content: string; modelUsed: string }> {
-    const maxRetries = this.FREE_MODELS.length * 2; // 允许每个模型重试一次
+    const key = resolveApiKey({
+      userApiKey,
+      userId,
+      validate: this.validateApiKey,
+      logger,
+    });
+
+    logger('import.meta.env:', (import.meta as any).env);
+
+    return key;
+  }
+
+  private static async callOpenRouter(
+    prompt: string,
+    apiKey: string,
+    retryCount = 0
+  ): Promise<{ content: string; modelUsed: ModelConfig }> {
+    const maxRetries = modelRegistry.total * 2; // 允许每个模型重试一次
 
     if (retryCount >= maxRetries) {
       throw new Error('所有模型都不可用，请稍后重试或检查网络连接');
     }
 
     // 选择模型：优先使用上次成功的模型，否则按顺序轮询
-    let modelToUse = this.FREE_MODELS[this.currentModelIndex];
+    let modelToUse = modelRegistry.getActiveModel();
 
-    // 如果当前模型失败次数过多，跳过它
-    const failureCount = this.modelFailureCount.get(modelToUse.id) || 0;
-    if (failureCount >= 3) {
-      this.currentModelIndex = (this.currentModelIndex + 1) % this.FREE_MODELS.length;
-      modelToUse = this.FREE_MODELS[this.currentModelIndex];
+    if (modelRegistry.shouldSkip(modelToUse.id)) {
+      modelToUse = modelRegistry.advance();
     }
 
     console.log(`🤖 尝试使用模型: ${modelToUse.name} (${modelToUse.id})`);
@@ -69,7 +68,10 @@ export class AIService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 45000); // 45秒超时
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      let response: Response;
+
+      try {
+        response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,19 +96,27 @@ export class AIService {
           top_p: 0.9,
         }),
         signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
         let errorMessage = `HTTP ${response.status}`;
+        let parsedError: any = null;
 
         try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error?.message || errorMessage;
+          parsedError = JSON.parse(errorText);
+          errorMessage = parsedError.error?.message || errorMessage;
         } catch {
-          // 忽略JSON解析错误
+          // 忽略 JSON 解析错误，保留原始文本
+        }
+
+        // 针对 OpenRouter 返回的 401 "User not found." 给出更友好的提示
+        if (response.status === 401 && parsedError?.error?.message && parsedError.error.message.toLowerCase().includes('user not found')) {
+          const safeKeyHint = apiKey && typeof apiKey === 'string' && apiKey.length > 10 ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}` : '（未提供）';
+          throw new Error(`OpenRouter 返回 401: User not found. 这通常表示所使用的 API Key 无效或未正确关联到 OpenRouter 帐号。\n使用的 Key（部分）：${safeKeyHint}\n解决办法：确保在项目环境变量 VITE_OPENROUTER_API_KEY 中配置了有效的 OpenRouter API Key，或在“API Key 管理”中添加有效 Key；如仍有问题，请登录 OpenRouter 控制台确认 Key 状态。`);
         }
 
         throw new Error(`模型 ${modelToUse.name} 请求失败: ${errorMessage}`);
@@ -120,43 +130,42 @@ export class AIService {
       }
 
       // 成功时重置失败计数并记录成功模型
-      this.modelFailureCount.set(modelToUse.id, 0);
-      this.lastSuccessfulModel = modelToUse.id;
+      modelRegistry.markSuccess(modelToUse.id);
 
       console.log(`✅ 模型 ${modelToUse.name} 生成成功`);
 
       return {
         content,
-        modelUsed: modelToUse.name
+        modelUsed: modelToUse
       };
 
     } catch (error) {
-      const currentFailures = this.modelFailureCount.get(modelToUse.id) || 0;
-      this.modelFailureCount.set(modelToUse.id, currentFailures + 1);
+      const failureCount = modelRegistry.markFailure(modelToUse.id);
 
-      console.warn(`❌ 模型 ${modelToUse.name} 失败 (第${currentFailures + 1}次):`, error);
+      console.warn(`❌ 模型 ${modelToUse.name} 失败 (第${failureCount}次):`, error);
 
-      // 切换到下一个模型
-      this.currentModelIndex = (this.currentModelIndex + 1) % this.FREE_MODELS.length;
+      modelRegistry.advance();
 
-      // 如果是网络错误、超时、服务器错误或编码错误，立即重试下一个模型
-      if (error instanceof Error && (
-        error.name === 'AbortError' ||
-        error.message.includes('fetch') ||
-        error.message.includes('network') ||
-        error.message.includes('timeout') ||
-        error.message.includes('503') ||
-        error.message.includes('502') ||
-        error.message.includes('500') ||
-        error.message.includes('ISO-8859-1') ||
-        error.message.includes('non ISO-8859-1')
-      )) {
-        return this.callOpenRouter(prompt, apiKey, retryCount + 1);
+      const immediateRetry =
+        error instanceof Error && (
+          error.name === 'AbortError' ||
+          error.message.includes('fetch') ||
+          error.message.includes('network') ||
+          error.message.includes('timeout') ||
+          error.message.includes('503') ||
+          error.message.includes('502') ||
+          error.message.includes('500') ||
+          error.message.includes('ISO-8859-1') ||
+          error.message.includes('non ISO-8859-1')
+        );
+
+      if (!immediateRetry) {
+        const delay = Math.min(
+          1000 * Math.pow(2, Math.floor(retryCount / Math.max(modelRegistry.total, 1))),
+          5000
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      // 其他错误稍作延迟后重试
-      const delay = Math.min(1000 * Math.pow(2, Math.floor(retryCount / this.FREE_MODELS.length)), 5000);
-      await new Promise(resolve => setTimeout(resolve, delay));
 
       return this.callOpenRouter(prompt, apiKey, retryCount + 1);
     }
@@ -167,7 +176,10 @@ export class AIService {
     count,
     difficulty = 'medium',
     apiKey,
+    userId,
   }: AIGenerateRequest): Promise<Question[]> {
+    // 获取要使用的 API Key
+    const effectiveApiKey = this.getApiKey(apiKey, userId);
     const categoryMap: Record<string, string> = {
       'java': 'Java编程',
       'python': 'Python编程',
@@ -211,62 +223,14 @@ export class AIService {
 请直接返回JSON数组：`;
 
     try {
-      const { content, modelUsed } = await this.callOpenRouter(prompt, apiKey);
-
-      // 清理 JSON 响应
-      let cleanedResponse = content.trim();
-
-      // 移除可能的markdown标记
-      if (cleanedResponse.startsWith('```json')) {
-        cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/\n?```$/, '');
-      }
-      if (cleanedResponse.startsWith('```')) {
-        cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/\n?```$/, '');
-      }
-
-      // 移除可能的前后文本
-      const jsonStart = cleanedResponse.indexOf('[');
-      const jsonEnd = cleanedResponse.lastIndexOf(']');
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        cleanedResponse = cleanedResponse.substring(jsonStart, jsonEnd + 1);
-      }
-
-      let questionsData;
-      try {
-        questionsData = JSON.parse(cleanedResponse);
-      } catch (parseError) {
-        console.error('JSON解析失败，原始响应:', cleanedResponse);
-        throw new Error(`模型${modelUsed}返回的JSON格式无效，请重试`);
-      }
-
-      if (!Array.isArray(questionsData)) {
-        throw new Error(`模型${modelUsed}返回的不是数组格式，请重试`);
-      }
-
-      if (questionsData.length === 0) {
-        throw new Error(`模型${modelUsed}没有生成任何题目，请重试`);
-      }
-
-      const questions: Question[] = questionsData.map((q: any, index: number) => {
-        // 验证题目格式
-        if (!q.question || !Array.isArray(q.options) || q.options.length !== 4 ||
-          typeof q.correctAnswer !== 'number' || q.correctAnswer < 0 || q.correctAnswer > 3) {
-          throw new Error(`模型${modelUsed}生成的第${index + 1}题格式不正确`);
-        }
-
-        return {
-          id: `ai_${category}_${Date.now()}_${index}`,
-          category,
-          question: q.question,
-          options: q.options,
-          correctAnswer: q.correctAnswer,
-          explanation: q.explanation || '暂无解释',
-          difficulty: q.difficulty || difficulty,
-          createdAt: new Date().toISOString(),
-        };
+      const { content, modelUsed } = await this.callOpenRouter(prompt, effectiveApiKey);
+      const questions = parseModelResponse(content, {
+        category,
+        difficulty,
+        modelName: modelUsed.name,
       });
 
-      console.log(`✅ 成功使用${modelUsed}生成${questions.length}道题目`);
+      console.log(`✅ 成功使用${modelUsed.name}生成${questions.length}道题目`);
       return questions;
 
     } catch (error) {
@@ -290,59 +254,38 @@ export class AIService {
 
   // 获取当前使用的模型信息
   static getCurrentModelInfo(): { model: string; name: string; description: string; index: number; total: number } {
-    const currentModel = this.FREE_MODELS[this.currentModelIndex];
+    const currentModel = modelRegistry.getActiveModel();
     return {
       model: currentModel.id,
       name: currentModel.name,
       description: currentModel.description,
-      index: this.currentModelIndex,
-      total: this.FREE_MODELS.length
+      index: modelRegistry.getHealthSnapshot().currentModel.index,
+      total: modelRegistry.total
     };
   }
 
   // 获取所有可用模型
   static getAllModels() {
-    return this.FREE_MODELS.map((model, index) => ({
-      ...model,
-      isActive: index === this.currentModelIndex,
-      failureCount: this.modelFailureCount.get(model.id) || 0,
-      isLastSuccessful: model.id === this.lastSuccessfulModel
-    }));
+    return modelRegistry.getAllModels();
   }
 
   // 手动切换模型
   static switchToNextModel(): void {
-    this.currentModelIndex = (this.currentModelIndex + 1) % this.FREE_MODELS.length;
+    modelRegistry.advance();
   }
 
   // 切换到指定模型
   static switchToModel(modelId: string): boolean {
-    const modelIndex = this.FREE_MODELS.findIndex(model => model.id === modelId);
-    if (modelIndex !== -1) {
-      this.currentModelIndex = modelIndex;
-      return true;
-    }
-    return false;
+    return modelRegistry.setActiveModel(modelId);
   }
 
   // 重置模型失败计数
   static resetModelFailures(): void {
-    this.modelFailureCount.clear();
+    modelRegistry.resetFailures();
   }
 
   // 获取模型健康状态
   static getModelHealth() {
-    return {
-      totalModels: this.FREE_MODELS.length,
-      currentModel: this.getCurrentModelInfo(),
-      failedModels: Array.from(this.modelFailureCount.entries())
-        .filter(([_, count]) => count > 0)
-        .map(([modelId, count]) => ({
-          modelId,
-          name: this.FREE_MODELS.find(m => m.id === modelId)?.name || modelId,
-          failureCount: count
-        })),
-      lastSuccessful: this.lastSuccessfulModel
-    };
+    return modelRegistry.getHealthSnapshot();
   }
 }

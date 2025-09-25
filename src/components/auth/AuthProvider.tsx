@@ -6,12 +6,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: any;
   isLoading: boolean;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
   isLoading: false,
+  signOut: async () => {},
 });
 
 export const useAuth = () => {
@@ -31,31 +33,74 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   children, 
   requireAuth = false 
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [session, setSession] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 暂时使用本地状态管理，不依赖Better Auth
+  // 自定义session获取
+  const fetchSession = async () => {
+    try {
+      const response = await fetch('/api/auth/session', {
+        credentials: 'include', // 包含cookies
+      });
+      const data = await response.json();
+      setSession(data);
+    } catch (error) {
+      console.error('Failed to fetch session:', error);
+      setSession({ user: null, session: null });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSession();
+    
+    // 监听URL变化，如果有登录成功参数，重新获取session
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('login') === 'success') {
+      setTimeout(fetchSession, 500); // 稍微延迟以确保cookie已设置
+    }
+  }, []);
+
   const isAuthenticated = !!session?.user;
   const user = session?.user || null;
 
   useEffect(() => {
-    // 模拟加载过程
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      if (requireAuth && !isAuthenticated) {
+    if (!isLoading && requireAuth && !isAuthenticated) {
+      setShowAuth(true);
+    } else if (isAuthenticated) {
+      setShowAuth(false);
+    }
+  }, [requireAuth, isAuthenticated, isLoading]);
+
+  const handleSignOut = async () => {
+    try {
+      // 调用我们的退出登录API
+      await fetch('/api/auth/sign-out', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      
+      // 清除本地session状态
+      setSession({ user: null, session: null });
+      
+      if (requireAuth) {
         setShowAuth(true);
       }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [requireAuth, isAuthenticated]);
+      
+      // 重定向到首页
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
 
   const contextValue: AuthContextType = {
     isAuthenticated,
     user,
     isLoading,
+    signOut: handleSignOut,
   };
 
   if (isLoading) {

@@ -13,8 +13,7 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
-  Trash2,
-  MarkAsRead
+  Trash2
 } from 'lucide-react';
 import { notificationSystem, Notification } from '@/utils/notificationSystem';
 import { useApp } from '@/contexts/AppContext';
@@ -22,9 +21,10 @@ import { useApp } from '@/contexts/AppContext';
 interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
+  onUpdate?: (payload: { notifications: Notification[]; unread: number }) => void;
 }
 
-export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose }) => {
+export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose, onUpdate }) => {
   const { dispatch } = useApp();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -40,6 +40,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     const unread = notificationSystem.getUnreadCount();
     setNotifications(allNotifications);
     setUnreadCount(unread);
+    onUpdate?.({ notifications: allNotifications, unread });
   };
 
   const handleMarkAsRead = (notificationId: string) => {
@@ -82,19 +83,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
         return <AlertCircle className="h-5 w-5 text-purple-600" />;
       default:
         return <Bell className="h-5 w-5 text-gray-600" />;
-    }
-  };
-
-  const getPriorityColor = (priority: Notification['priority']) => {
-    switch (priority) {
-      case 'high':
-        return 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950';
-      case 'medium':
-        return 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950';
-      case 'low':
-        return 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950';
-      default:
-        return 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800';
     }
   };
 
@@ -264,16 +252,15 @@ export const NotificationBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // Initialize notification system
-    notificationSystem.init();
-    
     // Load initial unread count
-    setUnreadCount(notificationSystem.getUnreadCount());
+    const updateUnreadCount = () => {
+      setUnreadCount(notificationSystem.getUnreadCount());
+    };
+    
+    updateUnreadCount();
     
     // Set up periodic updates
-    const interval = setInterval(() => {
-      setUnreadCount(notificationSystem.getUnreadCount());
-    }, 30000); // Check every 30 seconds
+    const interval = setInterval(updateUnreadCount, 10000); // Check every 10 seconds
     
     return () => clearInterval(interval);
   }, []);
@@ -299,7 +286,8 @@ export const NotificationBell: React.FC = () => {
       
       <NotificationCenter 
         isOpen={isOpen} 
-        onClose={() => setIsOpen(false)} 
+        onClose={() => setIsOpen(false)}
+        onUpdate={({ unread }) => setUnreadCount(unread)}
       />
     </>
   );

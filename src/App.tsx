@@ -15,6 +15,7 @@ import { ManagePage } from '@/components/ManagePage';
 import { AnalyticsPage } from '@/components/AnalyticsPage';
 import { SmartLearningAssistant } from '@/components/SmartLearningAssistant';
 import { GoogleOAuthManager } from '@/components/auth/GoogleOAuthManager';
+import { ApiKeyManager } from '@/components/ApiKeyManager';
 import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 import './dark-mode-fix.css';
@@ -46,6 +47,8 @@ function AppContent() {
         return <SmartLearningAssistant />;
       case 'google-oauth':
         return <GoogleOAuthManager />;
+      case 'api-keys':
+        return <ApiKeyManager />;
       default:
         return <HomePage />;
     }

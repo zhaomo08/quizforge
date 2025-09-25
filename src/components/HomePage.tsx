@@ -17,6 +17,24 @@ export const HomePage: React.FC = () => {
     notificationSystem.checkForNotifications();
   }, []);
 
+  // 检查URL参数中的登录状态
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const loginStatus = urlParams.get('login');
+    const error = urlParams.get('error');
+    
+    if (loginStatus === 'success') {
+      // 清理URL参数
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
+    if (error) {
+      console.error('OAuth error:', error);
+      // 清理URL参数
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const features = [
     {
       icon: Brain,

@@ -255,10 +255,10 @@ export const SmartGenerationAssistant: React.FC<SmartGenerationAssistantProps> =
                   </div>
                   <div className="flex items-center space-x-2">
                     {insight.duplicateRate > 0.1 && (
-                      <AlertTriangle className="h-4 w-4 text-yellow-500" title="重复率较高" />
+                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
                     )}
                     {insight.averageQuality > 80 && (
-                      <CheckCircle className="h-4 w-4 text-green-500" title="质量优秀" />
+                      <CheckCircle className="h-4 w-4 text-green-500" />
                     )}
                   </div>
                 </div>

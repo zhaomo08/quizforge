@@ -1,0 +1,271 @@
+interface ApiKey {
+  id: string;
+  name: string;
+  provider: 'openai' | 'anthropic' | 'google' | 'custom' | 'builtin';
+  key: string;
+  createdAt: string;
+  lastUsed?: string;
+  isDefault?: boolean;
+  isBuiltIn?: boolean;
+  encrypted?: boolean;
+}
+
+// 简单的加密/解密函数（用于内置 API Key）
+const simpleEncrypt = (text: string): string => {
+  return btoa(text.split('').reverse().join(''));
+};
+
+const simpleDecrypt = (encrypted: string): string => {
+  try {
+    return atob(encrypted).split('').reverse().join('');
+  } catch {
+    return '';
+  }
+};
+
+export const apiKeyUtils = {
+  // 获取项目内置 API Key
+  getBuiltInApiKey: (): string => {
+    const envKey = (import.meta as any).env?.VITE_OPENROUTER_API_KEY || '';
+    
+    // 检测示例密钥，如果是示例密钥则返回空字符串
+    if (envKey.includes('demo-key') || envKey.includes('replace-with-real') || envKey.includes('your_openrouter_api_key_here')) {
+      return '';
+    }
+    
+    return envKey;
+  },
+
+  // 初始化用户的内置 API Key（登录时调用）
+  initializeBuiltInApiKey: (userId: string): void => {
+    const builtInKey = apiKeyUtils.getBuiltInApiKey();
+    if (!builtInKey) return;
+
+    const storageKey = `api_keys_${userId}`;
+    const existingKeys = apiKeyUtils.getUserApiKeys(userId);
+    const existingBuiltIn = existingKeys.find(k => k.isBuiltIn);
+
+    // 如果已经存在内置 key，但与当前环境中的内置 key 不同，则覆盖更新
+    if (existingBuiltIn) {
+      try {
+        const decrypted = existingBuiltIn.encrypted ? simpleDecrypt(existingBuiltIn.key) : existingBuiltIn.key;
+        if (decrypted !== builtInKey) {
+          const encryptedKey = simpleEncrypt(builtInKey);
+          const updatedKeys = existingKeys.map(k =>
+            k.id === existingBuiltIn.id
+              ? { ...k, key: encryptedKey, encrypted: true, createdAt: new Date().toISOString() }
+              : k
+          );
+          localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+          return;
+        }
+      } catch (e) {
+        // 如果解密失败，则覆盖为新的内置 key
+        const encryptedKey = simpleEncrypt(builtInKey);
+        const updatedKeys = existingKeys.map(k =>
+          k.id === existingBuiltIn.id
+            ? { ...k, key: encryptedKey, encrypted: true, createdAt: new Date().toISOString() }
+            : k
+        );
+        localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+        return;
+      }
+    }
+
+    // 如果不存在内置 key，则添加
+    const encryptedKey = simpleEncrypt(builtInKey);
+    const builtInApiKey: ApiKey = {
+      id: 'builtin_default',
+      name: '项目内置免费模型',
+      provider: 'builtin',
+      key: encryptedKey,
+      createdAt: new Date().toISOString(),
+      isDefault: true,
+      isBuiltIn: true,
+      encrypted: true
+    };
+
+    const updatedKeys = [builtInApiKey, ...existingKeys];
+    localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+  },
+
+  // 获取用户的API Keys
+  getUserApiKeys: (userId: string): ApiKey[] => {
+    const storageKey = `api_keys_${userId}`;
+    const stored = localStorage.getItem(storageKey);
+    
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (error) {
+        console.error('Failed to parse API keys:', error);
+        return [];
+      }
+    }
+    
+    return [];
+  },
+
+  // 根据提供商获取API Key
+  getApiKeyByProvider: (userId: string, provider: string): ApiKey | null => {
+    const apiKeys = apiKeyUtils.getUserApiKeys(userId);
+    return apiKeys.find(key => key.provider === provider) || null;
+  },
+
+  // 获取默认API Key（优先返回标记为默认的，否则返回第一个）
+  getDefaultApiKey: (userId: string): ApiKey | null => {
+    const apiKeys = apiKeyUtils.getUserApiKeys(userId);
+    const defaultKey = apiKeys.find(key => key.isDefault);
+    return defaultKey || (apiKeys.length > 0 ? apiKeys[0] : null);
+  },
+
+  // 获取解密后的 API Key
+  getDecryptedApiKey: (apiKey: ApiKey): string => {
+    if (apiKey.encrypted && apiKey.isBuiltIn) {
+      return simpleDecrypt(apiKey.key);
+    }
+    return apiKey.key;
+  },
+
+  // 更新API Key的最后使用时间
+  updateLastUsed: (userId: string, keyId: string): void => {
+    const apiKeys = apiKeyUtils.getUserApiKeys(userId);
+    const updatedKeys = apiKeys.map(key => 
+      key.id === keyId 
+        ? { ...key, lastUsed: new Date().toISOString() }
+        : key
+    );
+    
+    const storageKey = `api_keys_${userId}`;
+    localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+  },
+
+  // 检查用户是否有可用的API Key
+  hasApiKey: (userId: string): boolean => {
+    const apiKeys = apiKeyUtils.getUserApiKeys(userId);
+    return apiKeys.length > 0;
+  },
+
+  // 设置默认 API Key
+  setDefaultApiKey: (userId: string, keyId: string): void => {
+    const apiKeys = apiKeyUtils.getUserApiKeys(userId);
+    const updatedKeys = apiKeys.map(key => ({
+      ...key,
+      isDefault: key.id === keyId
+    }));
+    
+    const storageKey = `api_keys_${userId}`;
+    localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+  },
+
+  // 获取支持的提供商列表
+  getSupportedProviders: () => [
+    { id: 'builtin', name: '项目内置', models: ['DeepSeek V3.1', 'Gemini 2.0 Flash', 'Kimi K2', 'Mistral Small', 'GPT-OSS-120B'] },
+    { id: 'openai', name: 'OpenAI', models: ['gpt-4', 'gpt-3.5-turbo'] },
+    { id: 'anthropic', name: 'Anthropic', models: ['claude-3', 'claude-2'] },
+    { id: 'google', name: 'Google AI', models: ['gemini-pro', 'gemini-pro-vision'] },
+    { id: 'custom', name: '自定义', models: [] }
+  ],
+
+  // 验证API Key格式
+  validateApiKey: (provider: string, key: string): boolean => {
+    if (!key || key.trim().length === 0) return false;
+    
+    switch (provider) {
+      case 'builtin':
+        return true; // 内置 API Key 总是有效
+      case 'openai':
+        return key.startsWith('sk-') && key.length > 20;
+      case 'anthropic':
+        return key.startsWith('sk-ant-') && key.length > 20;
+      case 'google':
+        return key.length > 10; // Google API keys vary in format
+      case 'custom':
+        return key.length > 5; // Minimal validation for custom keys
+      default:
+        return false;
+    }
+  },
+
+  // 创建API请求配置
+  createApiConfig: (apiKey: ApiKey) => {
+    const baseConfigs = {
+      builtin: {
+        baseURL: 'https://openrouter.ai/api/v1',
+        headers: {
+          'Authorization': `Bearer ${apiKey.key}`,
+          'Content-Type': 'application/json'
+        }
+      },
+      openai: {
+        baseURL: 'https://api.openai.com/v1',
+        headers: {
+          'Authorization': `Bearer ${apiKey.key}`,
+          'Content-Type': 'application/json'
+        }
+      },
+      anthropic: {
+        baseURL: 'https://api.anthropic.com/v1',
+        headers: {
+          'x-api-key': apiKey.key,
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01'
+        }
+      },
+      google: {
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        params: {
+          key: apiKey.key
+        }
+      },
+      custom: {
+        headers: {
+          'Authorization': `Bearer ${apiKey.key}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    };
+
+    return baseConfigs[apiKey.provider as keyof typeof baseConfigs] || baseConfigs.custom;
+  },
+
+  // 测试API Key是否有效
+  testApiKey: async (apiKey: ApiKey): Promise<{ valid: boolean; error?: string }> => {
+    try {
+      const config = apiKeyUtils.createApiConfig(apiKey);
+      
+      // 根据不同提供商进行测试请求
+      switch (apiKey.provider) {
+        case 'openai':
+          // config 可能是不同 shape 的对象，使用 any 以避免类型检查错误
+          const openaiResponse = await fetch(`${(config as any).baseURL}/models`, {
+            headers: (config as any).headers
+          });
+          return { valid: openaiResponse.ok };
+          
+        case 'anthropic':
+          // Anthropic doesn't have a simple test endpoint, so we'll just validate the format
+          return { valid: apiKeyUtils.validateApiKey('anthropic', apiKey.key) };
+          
+        case 'google':
+          const googleResponse = await fetch(
+            `${(config as any).baseURL}/models?${new URLSearchParams((config as any).params || {})}`
+          );
+          return { valid: googleResponse.ok };
+          
+        default:
+          return { valid: true }; // Assume custom keys are valid
+      }
+    } catch (error) {
+      return { 
+        valid: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+};
+
+export type { ApiKey };

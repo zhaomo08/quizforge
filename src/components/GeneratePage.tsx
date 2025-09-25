@@ -30,6 +30,8 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { apiKeyUtils } from '@/utils/apiKeyUtils';
 import { AIService } from '@/utils/aiService';
 import { storage } from '@/utils/storage';
 import { GenerationAnalytics } from '@/utils/generationAnalytics';
@@ -39,14 +41,16 @@ import { useMobile, MobileUtils } from '@/utils/mobileUtils';
 
 export const GeneratePage: React.FC = () => {
   const { state, dispatch } = useApp();
+  const { isAuthenticated, user } = useAuth();
   const { isMobile, isTablet, screenSize, isTouchDevice } = useMobile();
   
-  const [apiKey, setApiKey] = useState(state.apiKey || '');
+  // 简化 API Key 逻辑，不再在生成页面显示 API Key 设置
+  const userApiKey = isAuthenticated && user ? apiKeyUtils.getDefaultApiKey(user.id) : null;
+  
   const [selectedCategory, setSelectedCategory] = useState('java');
   const [questionCount, setQuestionCount] = useState('10');
   const [difficulty, setDifficulty] = useState('medium');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showApiKeyInput, setShowApiKeyInput] = useState(!state.apiKey);
   
   // 新增状态 - 渐进式添加
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -63,7 +67,6 @@ export const GeneratePage: React.FC = () => {
   // 移动端特有状态
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    apiKey: !state.apiKey,
     settings: true,
     info: false
   });
@@ -72,6 +75,14 @@ export const GeneratePage: React.FC = () => {
   useEffect(() => {
     MobileUtils.initMobileOptimizations();
   }, []);
+
+  // 初始化用户的内置 API Key
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // 为登录用户初始化内置 API Key
+      apiKeyUtils.initializeBuiltInApiKey(user.id);
+    }
+  }, [isAuthenticated, user]);
 
   // 加载模型健康状态
   useEffect(() => {
@@ -104,24 +115,18 @@ export const GeneratePage: React.FC = () => {
     }));
   };
 
-  const handleSaveApiKey = () => {
-    if (!AIService.validateApiKey(apiKey)) {
-      dispatch({ type: 'SET_ERROR', payload: 'API Key 格式不正确，应该以 sk- 开头' });
-      return;
-    }
-    
-    storage.saveApiKey(apiKey);
-    dispatch({ type: 'SET_API_KEY', payload: apiKey });
-    setShowApiKeyInput(false);
-    setExpandedSections(prev => ({ ...prev, apiKey: false }));
-    dispatch({ type: 'CLEAR_ERROR' });
+  // 移除 API Key 保存逻辑，现在统一在 API Key 管理页面处理
+
+  const navigateToApiKeyManager = () => {
+    dispatch({ type: 'SET_PAGE', payload: 'api-keys' });
   };
 
   const handleGenerate = async () => {
-    if (!apiKey) {
-      dispatch({ type: 'SET_ERROR', payload: '请先设置 OpenRouter API Key' });
-      return;
-    }
+    // 注释掉认证检查，允许使用内置API Key
+    // if (!isAuthenticated) {
+    //   dispatch({ type: 'SET_ERROR', payload: '请先登录 Google 账号使用免费模型' });
+    //   return;
+    // }
 
     setIsGenerating(true);
     setGenerationProgress(0);
@@ -141,8 +146,13 @@ export const GeneratePage: React.FC = () => {
         category: selectedCategory,
         count: parseInt(questionCount),
         difficulty,
-        apiKey,
+        userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
       });
+      
+      // 如果用户已登录，更新API Key的最后使用时间
+      if (isAuthenticated && user && userApiKey) {
+        apiKeyUtils.updateLastUsed(user.id, userApiKey.id);
+      }
 
       setCurrentStep('分析题目质量...');
       setGenerationProgress(60);
@@ -218,10 +228,11 @@ export const GeneratePage: React.FC = () => {
   };
 
   const handlePreviewGeneration = async () => {
-    if (!apiKey) {
-      dispatch({ type: 'SET_ERROR', payload: '请先设置 OpenRouter API Key' });
-      return;
-    }
+    // 注释掉认证检查，允许使用内置API Key
+    // if (!isAuthenticated) {
+    //   dispatch({ type: 'SET_ERROR', payload: '请先登录 Google 账号使用免费模型' });
+    //   return;
+    // }
 
     setIsGenerating(true);
     setCurrentStep('生成预览题目...');
@@ -234,8 +245,13 @@ export const GeneratePage: React.FC = () => {
         category: selectedCategory,
         count: previewCount,
         difficulty,
-        apiKey,
+        userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
       });
+      
+      // 如果用户已登录，更新API Key的最后使用时间
+      if (isAuthenticated && user && userApiKey) {
+        apiKeyUtils.updateLastUsed(user.id, userApiKey.id);
+      }
 
       setPreviewQuestions(questions);
       setShowPreview(true);
@@ -333,10 +349,11 @@ export const GeneratePage: React.FC = () => {
 
   // 处理批量生成
   const handleBatchGenerate = async (batchItems: any[]) => {
-    if (!apiKey) {
-      dispatch({ type: 'SET_ERROR', payload: '请先设置 OpenRouter API Key' });
-      return;
-    }
+    // 注释掉认证检查，允许使用内置API Key
+    // if (!isAuthenticated) {
+    //   dispatch({ type: 'SET_ERROR', payload: '请先登录 Google 账号使用免费模型' });
+    //   return;
+    // }
 
     setIsGenerating(true);
     dispatch({ type: 'CLEAR_ERROR' });
@@ -360,8 +377,13 @@ export const GeneratePage: React.FC = () => {
           category: item.category,
           count: item.count,
           difficulty: item.difficulty,
-          apiKey,
+          userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
         });
+        
+        // 如果用户已登录，更新API Key的最后使用时间
+        if (isAuthenticated && user && userApiKey) {
+          apiKeyUtils.updateLastUsed(user.id, userApiKey.id);
+        }
 
         item.progress = 80;
 
@@ -573,93 +595,57 @@ export const GeneratePage: React.FC = () => {
         </Alert>
       )}
 
-        {/* API Key Setup - Collapsible on mobile */}
-        <Card>
-          <CardHeader 
-            className={`${isMobile ? 'cursor-pointer' : ''}`}
-            onClick={isMobile ? () => toggleSection('apiKey') : undefined}
-          >
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Key className="h-5 w-5 mr-2" />
-                API Key 设置
-              </div>
-              {isMobile && (
-                expandedSections.apiKey ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-              )}
-            </CardTitle>
-          </CardHeader>
-          {(!isMobile || expandedSections.apiKey) && (
-            <CardContent>
-              {showApiKeyInput ? (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="api-key">OpenRouter API Key</Label>
-                    <Input
-                      id="api-key"
-                      type="password"
-                      placeholder="sk-..."
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      className={`mt-1 ${isMobile ? 'text-base' : ''}`}
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      请输入你的 OpenRouter API Key，支持多种免费AI模型
-                    </p>
-                  </div>
-                  
-                  <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} space-${isMobile ? 'y' : 'x'}-3`}>
-                    <Button 
-                      onClick={handleSaveApiKey} 
-                      disabled={!apiKey}
-                      className={isMobile ? 'w-full' : ''}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      保存并使用
-                    </Button>
-                    {state.apiKey && (
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setShowApiKeyInput(false)}
-                        className={isMobile ? 'w-full' : ''}
-                      >
-                        取消
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'items-center justify-between'}`}>
-                  <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center space-x-3'}`}>
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <span className="text-green-800 dark:text-green-200">API Key 已设置</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline">
-                        {apiKey.substring(0, 7)}...{apiKey.substring(apiKey.length - 4)}
-                      </Badge>
-                      {modelHealth && (
-                        <Badge variant="secondary" className={isMobile ? 'text-xs' : ''}>
-                          {modelHealth.currentModel.name}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+        {/* 未登录用户提示 */}
+        {!isAuthenticated && (
+          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800 dark:text-blue-200">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span>登录Google账户享受免费AI出题功能</span>
                   <Button 
-                    variant="outline" 
+                    variant="outline"
                     size="sm"
-                    onClick={() => setShowApiKeyInput(true)}
-                    className={isMobile ? 'w-full' : ''}
+                    onClick={() => window.location.href = '/api/auth/sign-in/google'}
                   >
-                    <Settings className="h-4 w-4 mr-2" />
-                    修改
+                    Google登录
                   </Button>
                 </div>
-              )}
+                <div className="text-sm">
+                  ✨ 免费使用5个AI模型 • 管理多个API Keys • 云端同步题库
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* 已登录用户状态显示 */}
+        {isAuthenticated && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <span className="text-green-800 dark:text-green-200">已登录，可使用免费AI模型</span>
+                  {modelHealth && (
+                    <Badge variant="secondary" className={isMobile ? 'text-xs' : ''}>
+                      {modelHealth.currentModel.name}
+                    </Badge>
+                  )}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={navigateToApiKeyManager}
+                  className={isMobile ? 'w-full mt-3' : ''}
+                >
+                  <Key className="h-4 w-4 mr-2" />
+                  管理 API Keys
+                </Button>
+              </div>
             </CardContent>
-          )}
-        </Card>
+          </Card>
+        )}
 
         {/* Content based on active tab */}
         {activeTab === 'single' && (
@@ -881,7 +867,7 @@ export const GeneratePage: React.FC = () => {
               <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'items-center justify-center space-x-4'}`}>
                 <Button 
                   onClick={handleGenerate}
-                  disabled={isGenerating || !apiKey}
+                  disabled={isGenerating || !isAuthenticated}
                   className={`bg-blue-600 hover:bg-blue-700 ${isMobile ? 'w-full h-12 text-base' : 'text-lg px-8 py-3'}`}
                   size={isMobile ? 'default' : 'lg'}
                 >
@@ -901,7 +887,7 @@ export const GeneratePage: React.FC = () => {
                 <Button 
                   variant="outline"
                   onClick={handlePreviewGeneration}
-                  disabled={isGenerating || !apiKey}
+                  disabled={isGenerating || !isAuthenticated}
                   className={isMobile ? 'w-full h-12 text-base' : ''}
                   size={isMobile ? 'default' : 'lg'}
                 >
@@ -910,9 +896,9 @@ export const GeneratePage: React.FC = () => {
                 </Button>
               </div>
               
-              {!apiKey && (
+              {!isAuthenticated && (
                 <p className={`text-gray-500 dark:text-gray-400 ${isMobile ? 'text-sm' : 'text-sm'}`}>
-                  请先设置 API Key 以使用AI生成功能
+                  请先登录 Google 账号以使用AI生成功能
                 </p>
               )}
               

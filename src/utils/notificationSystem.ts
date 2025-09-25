@@ -12,28 +12,106 @@ export interface Notification {
   actionUrl?: string;
 }
 
+interface NotificationInput extends Omit<Notification, 'id' | 'createdAt' | 'read'> {
+  dedupeWindowMinutes?: number;
+}
+
 const NOTIFICATIONS_STORAGE_KEY = 'app_notifications';
+const NOTIFICATION_HISTORY_KEY = 'app_notification_history';
+const DEFAULT_DEDUPE_MINUTES = 60; // one hour default dedupe window
+
+const buildHistoryKey = (payload: { type: Notification['type']; title: string; message: string }) => {
+  return `${payload.type}::${payload.title}::${payload.message}`;
+};
+
+const getHistory = (): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(NOTIFICATION_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    console.warn('Failed to parse notification history', error);
+    return {};
+  }
+};
+
+const setHistoryTimestamp = (historyKey: string, timestamp: string) => {
+  const history = getHistory();
+  history[historyKey] = timestamp;
+  localStorage.setItem(NOTIFICATION_HISTORY_KEY, JSON.stringify(history));
+};
 
 export const notificationSystem = {
   // Get all notifications
   getNotifications: (): Notification[] => {
     const notifications = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-    return notifications ? JSON.parse(notifications) : [];
+    const parsed: Notification[] = notifications ? JSON.parse(notifications) : [];
+    // 1) 修复老数据中可能缺失/重复 id 的情况
+    const seen = new Set<string>();
+    const fixed: Notification[] = [];
+    for (const n of parsed) {
+      let id = n.id || `notif_${new Date(n.createdAt).getTime()}_${Math.random().toString(36).slice(2, 8)}`;
+      // 避免重复 key：如果已存在相同 id，则给它重新生成一个后缀
+      if (seen.has(id)) {
+        id = `${id}_${Math.random().toString(36).slice(2, 6)}`;
+      }
+      seen.add(id);
+      fixed.push({ ...n, id });
+    }
+    // 如有修复，回写存储
+    if (fixed.length !== parsed.length || fixed.some((n, i) => n.id !== parsed[i]?.id)) {
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(fixed));
+    }
+    return fixed;
   },
 
   // Add a new notification
-  addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'read'>): void => {
+  addNotification: (input: NotificationInput): void => {
     const notifications = notificationSystem.getNotifications();
-    const newNotification: Notification = {
-      ...notification,
-      id: `notif_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      read: false
-    };
-    
-    notifications.unshift(newNotification);
-    
-    // Keep only last 50 notifications
+    const { dedupeWindowMinutes = DEFAULT_DEDUPE_MINUTES, ...notification } = input;
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const dedupeThreshold = now.getTime() - dedupeWindowMinutes * 60 * 1000;
+    const historyKey = buildHistoryKey(notification);
+    const history = getHistory();
+    const lastTimestamp = history[historyKey];
+    const withinWindow = lastTimestamp
+      ? new Date(lastTimestamp).getTime() >= dedupeThreshold
+      : false;
+
+    const duplicateIndex = notifications.findIndex((existing) => {
+      const createdAtMs = new Date(existing.createdAt).getTime();
+      return (
+        existing.type === notification.type &&
+        existing.title === notification.title &&
+        existing.message === notification.message &&
+        createdAtMs >= dedupeThreshold
+      );
+    });
+
+    if (duplicateIndex !== -1) {
+      const [existing] = notifications.splice(duplicateIndex, 1);
+      const updated: Notification = {
+        ...existing,
+        ...notification,
+        read: false,
+        createdAt: nowIso,
+      };
+      notifications.unshift(updated);
+      setHistoryTimestamp(historyKey, nowIso);
+    } else {
+      if (withinWindow) {
+        return;
+      }
+      const newNotification: Notification = {
+        ...notification,
+        id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        createdAt: nowIso,
+        read: false,
+      };
+      notifications.unshift(newNotification);
+      setHistoryTimestamp(historyKey, nowIso);
+    }
+
     const trimmedNotifications = notifications.slice(0, 50);
     localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(trimmedNotifications));
   },
@@ -71,7 +149,6 @@ export const notificationSystem = {
   checkForNotifications: (): void => {
     const testResults = storage.getTestResults();
     const stats = testUtils.getUserStats();
-    const lastCheck = localStorage.getItem('last_notification_check');
     const now = new Date();
     
     // Update last check time
@@ -85,13 +162,14 @@ export const notificationSystem = {
       (now.getTime() - new Date(lastTest.completedAt).getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    if (daysSinceLastTest >= 3) {
+    if (daysSinceLastTest >= 3 && !notificationSystem.hasRecentNotification('reminder', '学习提醒')) {
       notificationSystem.addNotification({
         type: 'reminder',
         title: '学习提醒',
         message: `距离上次测试已经${daysSinceLastTest}天了，保持学习节奏很重要哦！`,
         priority: 'medium',
-        actionUrl: 'category'
+        actionUrl: 'category',
+        dedupeWindowMinutes: 60 * 24
       });
     }
 

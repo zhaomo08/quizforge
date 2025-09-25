@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu';
-import { Home, Brain, BookOpen, BarChart3, Settings, LogIn, Code, Shield } from 'lucide-react';
+
+import { Home, Brain, BookOpen, BarChart3, Settings, LogIn } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { UserMenu } from '@/components/auth/UserMenu';
@@ -64,27 +58,6 @@ export const Navigation: React.FC = () => {
           <div className="flex items-center space-x-2">
             {/* Notifications */}
             <NotificationBell />
-            
-            {/* Developer Tools */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                  <Code className="h-4 w-4" />
-                  <span className="hidden sm:inline">开发工具</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => handleNavigation('google-oauth')}>
-                  <Shield className="h-4 w-4 mr-2" />
-                  Google OAuth 管理
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => window.open('/GOOGLE_OAUTH_COMPLETE_SETUP.md', '_blank')}>
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  OAuth 设置文档
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             
             {/* Theme Toggle */}
             <ThemeToggle />

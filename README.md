@@ -146,8 +146,8 @@ src/
 
 ## 📞 联系我们
 
-- 项目维护者: [Your Name]
-- 邮箱: [your.email@example.com]
+- 项目维护者: [Chester Zhao]
+- 邮箱: [zhaomo0823@gmail.com]
 
 ---
 

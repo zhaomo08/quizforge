@@ -268,23 +268,39 @@ export const HomePage: React.FC = () => {
         </Card>
       )}
 
-      {/* Features */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-slide-up" style={{animationDelay: '0.4s'}}>
-        {features.map(({ icon: Icon, title, description, color, bgColor }) => (
-          <Card key={title} className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-            <CardHeader>
-              <div className="flex items-center space-x-3">
-                <div className={`p-3 rounded-lg ${bgColor} transition-transform duration-300 hover:scale-110`}>
-                  <Icon className={`h-6 w-6 ${color}`} />
+      {/* 功能介绍（竖版） */}
+      <div className="animate-slide-up" style={{animationDelay: '0.4s'}}>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {features.map(({ icon: Icon, title, description, color, bgColor }) => (
+            <Card
+              key={title}
+              className="h-full overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-gray-200/70 dark:border-gray-800/70"
+            >
+              <CardContent className="p-6">
+                <div className="flex flex-col h-full">
+                  {/* Icon */}
+                  <div className="mb-4">
+                    <div className={`inline-flex p-3 rounded-xl ${bgColor}`}>
+                      <Icon className={`h-6 w-6 ${color}`} />
+                    </div>
+                  </div>
+                  {/* Title */}
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-foreground mb-2">{title}</h3>
+                  {/* Description */}
+                  <p className="text-gray-600 dark:text-muted-foreground leading-relaxed flex-1">
+                    {description}
+                  </p>
+                  {/* CTA */}
+                  <div className="mt-4">
+                    <Button variant="ghost" size="sm" className="px-0 text-blue-600 dark:text-blue-400 hover:underline">
+                      了解更多
+                    </Button>
+                  </div>
                 </div>
-                <CardTitle className="text-lg">{title}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-base leading-relaxed">{description}</CardDescription>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

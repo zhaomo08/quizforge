@@ -38,6 +38,7 @@ import { GenerationAnalytics } from '@/utils/generationAnalytics';
 import { SmartGenerationAssistant } from './SmartGenerationAssistant';
 import { BatchGenerationTool } from './BatchGenerationTool';
 import { useMobile, MobileUtils } from '@/utils/mobileUtils';
+import { BackButton } from '@/components/BackButton';
 
 export const GeneratePage: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -459,15 +460,7 @@ export const GeneratePage: React.FC = () => {
       <div className={`sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 ${isMobile ? 'pt-safe-top' : ''}`}>
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => dispatch({ type: 'SET_PAGE', payload: 'home' })}
-              className={isMobile ? 'p-2' : ''}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {!isMobile && <span className="ml-2">返回</span>}
-            </Button>
+            <BackButton to="home" label={isMobile ? '返回' : '返回'} size="sm" className={isMobile ? 'p-2' : ''} />
             <div>
               <h1 className={`font-bold text-gray-900 dark:text-foreground ${isMobile ? 'text-lg' : 'text-2xl'}`}>
                 AI智能出题
@@ -519,54 +512,32 @@ export const GeneratePage: React.FC = () => {
         {isMobile && showMobileMenu && (
           <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="p-4 space-y-2">
-              {modelHealth && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-muted-foreground">当前模型:</span>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      modelHealth.failedModels.length === 0 ? 'bg-green-500' : 
-                      modelHealth.failedModels.length < modelHealth.totalModels / 2 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`} />
-                    <span>{modelHealth.currentModel.name}</span>
-                  </div>
-                </div>
-              )}
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  variant={activeTab === 'single' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab('single')}
+                >
+                  单次生成
+                </Button>
+                <Button
+                  variant={activeTab === 'batch' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab('batch')}
+                >
+                  批量生成
+                </Button>
+                <Button
+                  variant={activeTab === 'assistant' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab('assistant')}
+                >
+                  智能助手
+                </Button>
+              </div>
             </div>
           </div>
         )}
-      </div>
-
-      <div className={`${isMobile ? 'p-4 space-y-4' : 'p-6 space-y-6 max-w-6xl mx-auto'}`}>
-        {/* Navigation Tabs */}
-        <div className={`${isMobile ? 'grid grid-cols-3 gap-1' : 'flex items-center space-x-1'} p-1 bg-gray-100 dark:bg-gray-800 rounded-lg`}>
-          <Button
-            variant={activeTab === 'single' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('single')}
-            className={`${isMobile ? 'flex-col h-auto py-3 px-2' : 'flex-1'}`}
-            size={isMobile ? 'sm' : 'default'}
-          >
-            <Sparkles className={`${isMobile ? 'h-4 w-4 mb-1' : 'h-4 w-4 mr-2'}`} />
-            <span className={isMobile ? 'text-xs' : ''}>单次生成</span>
-          </Button>
-          <Button
-            variant={activeTab === 'batch' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('batch')}
-            className={`${isMobile ? 'flex-col h-auto py-3 px-2' : 'flex-1'}`}
-            size={isMobile ? 'sm' : 'default'}
-          >
-            <Layers className={`${isMobile ? 'h-4 w-4 mb-1' : 'h-4 w-4 mr-2'}`} />
-            <span className={isMobile ? 'text-xs' : ''}>批量生成</span>
-          </Button>
-          <Button
-            variant={activeTab === 'assistant' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('assistant')}
-            className={`${isMobile ? 'flex-col h-auto py-3 px-2' : 'flex-1'}`}
-            size={isMobile ? 'sm' : 'default'}
-          >
-            <Brain className={`${isMobile ? 'h-4 w-4 mb-1' : 'h-4 w-4 mr-2'}`} />
-            <span className={isMobile ? 'text-xs' : ''}>智能助手</span>
-          </Button>
-        </div>
 
       {/* Status and Progress */}
       {(state.error || isGenerating) && (

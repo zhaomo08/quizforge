@@ -19,6 +19,8 @@ import {
 import { useApp } from '@/contexts/AppContext';
 import { storage } from '@/utils/storage';
 import { testUtils } from '@/utils/testUtils';
+import { BackButton } from '@/components/BackButton';
+import { PageHeader } from '@/components/PageHeader';
 
 export const ManagePage: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -137,20 +139,11 @@ export const ManagePage: React.FC = () => {
   return (
     <div className="page-container layout-stable">
       {/* Header */}
-      <div className="flex items-center mb-8">
-        <Button
-          variant="ghost"
-          onClick={() => dispatch({ type: 'SET_PAGE', payload: 'home' })}
-          className="mr-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          返回首页
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">题库管理</h1>
-          <p className="text-gray-600 mt-2">管理你的面试题库和数据</p>
-        </div>
-      </div>
+      <PageHeader
+        title="题库管理"
+        subtitle="管理你的面试题库和数据"
+        backTo="home"
+      />
 
       {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

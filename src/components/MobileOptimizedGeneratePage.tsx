@@ -36,6 +36,7 @@ import { GenerationAnalytics } from '@/utils/generationAnalytics';
 import { SmartGenerationAssistant } from './SmartGenerationAssistant';
 import { BatchGenerationTool } from './BatchGenerationTool';
 import { useMobile, MobileUtils } from '@/utils/mobileUtils';
+import { BackButton } from '@/components/BackButton';
 
 export const MobileOptimizedGeneratePage: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -433,15 +434,7 @@ export const MobileOptimizedGeneratePage: React.FC = () => {
       <div className={`sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 ${isMobile ? 'pt-safe-top' : ''}`}>
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => dispatch({ type: 'SET_PAGE', payload: 'home' })}
-              className={isMobile ? 'p-2' : ''}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {!isMobile && <span className="ml-2">返回</span>}
-            </Button>
+            <BackButton to="home" label={isMobile ? '返回' : '返回'} size="sm" className={isMobile ? 'p-2' : ''} />
             <div>
               <h1 className={`font-bold text-gray-900 dark:text-foreground ${isMobile ? 'text-lg' : 'text-2xl'}`}>
                 AI智能出题

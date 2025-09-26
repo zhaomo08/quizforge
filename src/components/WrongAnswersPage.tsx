@@ -17,6 +17,8 @@ import {
 import { useApp } from '@/contexts/AppContext';
 import { storage } from '@/utils/storage';
 import { WrongAnswer } from '@/types';
+import { BackButton } from '@/components/BackButton';
+import { PageHeader } from '@/components/PageHeader';
 
 export const WrongAnswersPage: React.FC = () => {
   const { dispatch } = useApp();
@@ -93,20 +95,11 @@ export const WrongAnswersPage: React.FC = () => {
   return (
     <div className="page-container layout-stable">
       {/* Header */}
-      <div className="flex items-center mb-8">
-        <Button
-          variant="ghost"
-          onClick={() => dispatch({ type: 'SET_PAGE', payload: 'home' })}
-          className="mr-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          返回首页
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">错题本</h1>
-          <p className="text-gray-600 mt-2">复习和巩固你的薄弱环节</p>
-        </div>
-      </div>
+      <PageHeader
+        title="错题本"
+        subtitle="复习和巩固你的薄弱环节"
+        backTo="home"
+      />
 
       {wrongAnswers.length === 0 ? (
         <Card>

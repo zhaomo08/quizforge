@@ -23,15 +23,14 @@ export const HomePage: React.FC = () => {
     const loginStatus = urlParams.get('login');
     const error = urlParams.get('error');
     
-    if (loginStatus === 'success') {
-      // 清理URL参数
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    
-    if (error) {
-      console.error('OAuth error:', error);
-      // 清理URL参数
-      window.history.replaceState({}, document.title, window.location.pathname);
+    if (loginStatus === 'success' || error) {
+      if (error) console.error('OAuth error:', error);
+      // 仅移除 login/error 参数，保留其它参数（尤其是 ?p= 用于路由）
+      const sp = new URLSearchParams(window.location.search);
+      sp.delete('login');
+      sp.delete('error');
+      const newUrl = `${window.location.pathname}${sp.toString() ? `?${sp.toString()}` : ''}`;
+      window.history.replaceState({}, document.title, newUrl);
     }
   }, []);
 

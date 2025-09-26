@@ -50,6 +50,7 @@ export const GeneratePage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('java');
   const [questionCount, setQuestionCount] = useState('10');
   const [difficulty, setDifficulty] = useState('medium');
+  const [strategy, setStrategy] = useState<'auto' | 'fast' | 'reasoning'>('auto');
   const [isGenerating, setIsGenerating] = useState(false);
   
   // 新增状态 - 渐进式添加
@@ -146,6 +147,7 @@ export const GeneratePage: React.FC = () => {
         category: selectedCategory,
         count: parseInt(questionCount),
         difficulty,
+        strategy: strategy === 'auto' ? undefined : (strategy as 'fast' | 'reasoning'),
         userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
       });
       
@@ -245,6 +247,7 @@ export const GeneratePage: React.FC = () => {
         category: selectedCategory,
         count: previewCount,
         difficulty,
+        strategy: strategy === 'auto' ? undefined : (strategy as 'fast' | 'reasoning'),
         userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
       });
       
@@ -377,6 +380,7 @@ export const GeneratePage: React.FC = () => {
           category: item.category,
           count: item.count,
           difficulty: item.difficulty,
+          strategy: item.strategy && item.strategy !== 'auto' ? (item.strategy as 'fast' | 'reasoning') : undefined,
           userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
         });
         
@@ -729,6 +733,20 @@ export const GeneratePage: React.FC = () => {
                           <SelectItem value="easy">简单 (初级)</SelectItem>
                           <SelectItem value="medium">中等 (中级)</SelectItem>
                           <SelectItem value="hard">困难 (高级)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="strategy">生成策略</Label>
+                      <Select value={strategy} onValueChange={(v) => setStrategy(v as 'auto' | 'fast' | 'reasoning')}>
+                        <SelectTrigger className={isMobile ? 'h-12 text-base' : ''}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">自动（按难度：hard→推理，其它→速度）</SelectItem>
+                          <SelectItem value="fast">速度优先（适合常规出题）</SelectItem>
+                          <SelectItem value="reasoning">推理优先（适合复杂解析）</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

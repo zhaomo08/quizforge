@@ -116,24 +116,38 @@ class ModelRegistry {
   }
 }
 
+// 推荐优先顺序：中文质量/稳定性优先，其次速度与推理能力
 const freeModels: ModelConfig[] = [
   {
+    // 用户指定：DeepSeek 3.1（免费档）。注意：若该 slug 在 OpenRouter 调整，请在此处更新。
     id: 'deepseek/deepseek-chat-v3.1:free',
-    name: 'DeepSeek V3.1',
-    description: 'DeepSeek免费模型',
-    maxTokens: 4000,
+    name: 'DeepSeek 3.1 (free)',
+    description: '中文与推理均衡，作为首选模型。',
+    maxTokens: 2048,
   },
   {
-    id: 'google/gemini-2.0-flash-exp:free',
-    name: 'Gemini 2.0 Flash',
-    description: 'Google免费模型',
-    maxTokens: 3500,
+    id: 'qwen/qwen3-8b:free',
+    name: 'Qwen3 8B (free)',
+    description: '中文表现稳健、速度快，适合题干/选项批量生成。',
+    maxTokens: 1536,
   },
   {
-    id: 'mistralai/mistral-small-3.1-24b-instruct:free',
-    name: 'Mistral Small',
-    description: 'Mistral免费模型',
-    maxTokens: 3000,
+    id: 'mistralai/mistral-7b-instruct:free',
+    name: 'Mistral 7B Instruct (free)',
+    description: '轻量快速，英文/通用任务稳定输出。',
+    maxTokens: 1536,
+  },
+  {
+    id: 'meta-llama/llama-3.3-8b-instruct:free',
+    name: 'Llama 3.3 8B Instruct (free)',
+    description: '响应迅速、上下文 128K，作为强健备选。',
+    maxTokens: 1536,
+  },
+  {
+    id: 'deepseek/deepseek-r1-0528:free',
+    name: 'DeepSeek R1 0528 (free)',
+    description: '强化推理场景（解析/讲解）使用，速度相对较慢。',
+    maxTokens: 2048,
   },
 ];
 

@@ -42,8 +42,29 @@ export const apiKeyUtils = {
     if (!builtInKey) return;
 
     const storageKey = `api_keys_${userId}`;
-    const existingKeys = apiKeyUtils.getUserApiKeys(userId);
-    const existingBuiltIn = existingKeys.find(k => k.isBuiltIn);
+    // 读取后先做一次去重，避免历史版本重复写入
+    const rawKeys = apiKeyUtils.getUserApiKeys(userId);
+    const dedupedById = new Map<string, ApiKey>();
+    for (const k of rawKeys) {
+      // 同一 id 以最新 createdAt 为准
+      const prev = dedupedById.get(k.id);
+      if (!prev || new Date(prev.createdAt) < new Date(k.createdAt)) {
+        dedupedById.set(k.id, k);
+      }
+    }
+    // 再按 (provider,name,isBuiltIn) 去重（避免相同内置项被多次插入不同 id）
+    const keys = Array.from(dedupedById.values());
+    const unique: ApiKey[] = [];
+    const seen = new Set<string>();
+    for (const k of keys) {
+      const sig = `${k.provider}|${k.name}|${k.isBuiltIn ? '1' : '0'}`;
+      if (!seen.has(sig)) {
+        seen.add(sig);
+        unique.push(k);
+      }
+    }
+
+    const existingBuiltIn = unique.find(k => k.isBuiltIn);
 
     // 如果已经存在内置 key，但与当前环境中的内置 key 不同，则覆盖更新
     if (existingBuiltIn) {
@@ -51,7 +72,7 @@ export const apiKeyUtils = {
         const decrypted = existingBuiltIn.encrypted ? simpleDecrypt(existingBuiltIn.key) : existingBuiltIn.key;
         if (decrypted !== builtInKey) {
           const encryptedKey = simpleEncrypt(builtInKey);
-          const updatedKeys = existingKeys.map(k =>
+          const updatedKeys = unique.map(k =>
             k.id === existingBuiltIn.id
               ? { ...k, key: encryptedKey, encrypted: true, createdAt: new Date().toISOString() }
               : k
@@ -62,7 +83,7 @@ export const apiKeyUtils = {
       } catch (e) {
         // 如果解密失败，则覆盖为新的内置 key
         const encryptedKey = simpleEncrypt(builtInKey);
-        const updatedKeys = existingKeys.map(k =>
+        const updatedKeys = unique.map(k =>
           k.id === existingBuiltIn.id
             ? { ...k, key: encryptedKey, encrypted: true, createdAt: new Date().toISOString() }
             : k
@@ -85,7 +106,13 @@ export const apiKeyUtils = {
       encrypted: true
     };
 
-    const updatedKeys = [builtInApiKey, ...existingKeys];
+    // 若 unique 中已存在任意 isBuiltIn 的条目，则不再追加，保证幂等
+    if (unique.some(k => k.isBuiltIn)) {
+      localStorage.setItem(storageKey, JSON.stringify(unique));
+      return;
+    }
+
+    const updatedKeys = [builtInApiKey, ...unique];
     localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
   },
 

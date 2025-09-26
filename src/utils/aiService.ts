@@ -9,6 +9,10 @@ export interface AIGenerateRequest {
   difficulty?: string;
   apiKey?: string; // 现在是可选的
   userId?: string; // 用户ID，用于判断是否使用内置API Key
+  // 任务型模型路由：
+  // fast - 速度优先/大多数出题任务（默认）
+  // reasoning - 推理优先/更复杂解析任务
+  strategy?: 'fast' | 'reasoning';
 }
 
 export class AIService {
@@ -42,6 +46,22 @@ export class AIService {
     logger('import.meta.env:', (import.meta as any).env);
 
     return key;
+  }
+
+  // 根据策略选择首选模型（若该模型不存在于 registry，则忽略）
+  private static selectPreferredModelByStrategy(strategy: 'fast' | 'reasoning'): void {
+    const mapping: Record<'fast' | 'reasoning', string> = {
+      fast: 'qwen/qwen3-8b:free',
+      reasoning: 'deepseek/deepseek-r1-0528:free',
+    };
+    const preferredId = mapping[strategy];
+    if (!preferredId) return;
+    const ok = modelRegistry.setActiveModel(preferredId);
+    if (ok) {
+      console.log(`🎯 策略(${strategy})已选择首选模型: ${preferredId}`);
+    } else {
+      console.log(`ℹ️ 策略(${strategy})的首选模型 ${preferredId} 不在注册表中，使用当前轮询模型`);
+    }
   }
 
   private static async callOpenRouter(
@@ -113,6 +133,30 @@ export class AIService {
           // 忽略 JSON 解析错误，保留原始文本
         }
 
+        // 429 友好重试：尊重 Retry-After 头，不计失败、不轮换模型
+        if (response.status === 429) {
+          const retryAfterHeader = response.headers.get('Retry-After');
+          let waitMs = 0;
+          if (retryAfterHeader) {
+            const asInt = parseInt(retryAfterHeader, 10);
+            if (!Number.isNaN(asInt)) {
+              waitMs = asInt * 1000; // 秒
+            } else {
+              const asDate = Date.parse(retryAfterHeader);
+              if (!Number.isNaN(asDate)) {
+                waitMs = Math.max(asDate - Date.now(), 0);
+              }
+            }
+          }
+          // 默认等待 1.5s，加入±300ms 抖动
+          if (waitMs <= 0) {
+            waitMs = 1500 + Math.floor((Math.random() - 0.5) * 600);
+          }
+          console.warn(`⏳ 命中限流 429，等待 ${waitMs}ms 后重试（不轮换模型）`);
+          await new Promise(r => setTimeout(r, waitMs));
+          return this.callOpenRouter(prompt, apiKey, retryCount + 1);
+        }
+
         // 针对 OpenRouter 返回的 401 "User not found." 给出更友好的提示
         if (response.status === 401 && parsedError?.error?.message && parsedError.error.message.toLowerCase().includes('user not found')) {
           const safeKeyHint = apiKey && typeof apiKey === 'string' && apiKey.length > 10 ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}` : '（未提供）';
@@ -140,11 +184,11 @@ export class AIService {
       };
 
     } catch (error) {
-      const failureCount = modelRegistry.markFailure(modelToUse.id);
+  const failureCount = modelRegistry.markFailure(modelToUse.id);
 
-      console.warn(`❌ 模型 ${modelToUse.name} 失败 (第${failureCount}次):`, error);
+  console.warn(`❌ 模型 ${modelToUse.name} 失败 (第${failureCount}次):`, error);
 
-      modelRegistry.advance();
+  modelRegistry.advance();
 
       const immediateRetry =
         error instanceof Error && (
@@ -177,6 +221,7 @@ export class AIService {
     difficulty = 'medium',
     apiKey,
     userId,
+    strategy,
   }: AIGenerateRequest): Promise<Question[]> {
     // 获取要使用的 API Key
     const effectiveApiKey = this.getApiKey(apiKey, userId);
@@ -197,6 +242,18 @@ export class AIService {
       'hard': '高级'
     };
     const difficultyName = difficultyMap[difficulty] || difficulty;
+
+    // 任务型模型路由：若未显式指定 strategy，则按难度推断（hard -> reasoning，其它 -> fast）
+    const effectiveStrategy: 'fast' | 'reasoning' = strategy
+      ? strategy
+      : (difficulty === 'hard' ? 'reasoning' : 'fast');
+
+    // 在调用前设置策略对应的首选模型，失败时由 callOpenRouter 内的轮询与重试接管
+    try {
+      this.selectPreferredModelByStrategy(effectiveStrategy);
+    } catch (e) {
+      console.warn('设置策略首选模型失败，继续使用当前模型轮询:', e);
+    }
 
     const prompt = `请生成${count}道${difficultyName}难度的${categoryName}面试题，严格按照以下JSON格式返回：
 

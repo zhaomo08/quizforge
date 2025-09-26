@@ -26,6 +26,7 @@ class ModelRegistry {
   private currentIndex = 0;
   private readonly failureCount = new Map<string, number>();
   private lastSuccessful = '';
+  private userSelectedModelId: string | null = null;
 
   constructor(private readonly models: ModelConfig[]) {}
 
@@ -58,6 +59,23 @@ class ModelRegistry {
 
     this.currentIndex = targetIndex;
     return true;
+  }
+
+  // 标记用户手动选择的模型，并切换到该模型
+  setUserSelectedModel(modelId: string): boolean {
+    const ok = this.setActiveModel(modelId);
+    if (ok) {
+      this.userSelectedModelId = modelId;
+    }
+    return ok;
+  }
+
+  clearUserSelectedModel(): void {
+    this.userSelectedModelId = null;
+  }
+
+  hasUserSelection(): boolean {
+    return !!this.userSelectedModelId;
   }
 
   markSuccess(modelId: string): void {

@@ -41,6 +41,11 @@ export const HomePage: React.FC = () => {
       description: '基于GPT技术，自动生成高质量的面试题目，覆盖多个技术领域',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
+      details: [
+        '支持多模型自动切换与降级，稳定输出',
+        '覆盖主流技术方向：Java / Python / 前端 / 数据库等',
+        '批量生成、质量评估与重复检测，保证题库质量',
+      ],
     },
     {
       icon: Target,
@@ -48,6 +53,11 @@ export const HomePage: React.FC = () => {
       description: '即时反馈答题结果，详细解析帮助你理解知识点',
       color: 'text-green-600',
       bgColor: 'bg-green-50',
+      details: [
+        '题目解析+知识点定位，哪里不会点哪里',
+        '得分、用时、正确率等多维度统计',
+        '错题自动归档，随时复盘',
+      ],
     },
     {
       icon: BookOpen,
@@ -55,6 +65,11 @@ export const HomePage: React.FC = () => {
       description: '自动收集错题，支持重复练习，巩固薄弱环节',
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
+      details: [
+        '按类别/难度筛选错题，一键生成练习集',
+        '错题原因记录与掌握度追踪',
+        '支持移动端碎片化学习',
+      ],
     },
     {
       icon: BarChart3,
@@ -62,6 +77,11 @@ export const HomePage: React.FC = () => {
       description: '详细的学习报告和进度跟踪，让学习更有方向',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
+      details: [
+        '学习趋势、薄弱项分析，一图看懂提升点',
+        '类别分布与正确率统计，量化学习效果',
+        '基于数据的个性化学习建议',
+      ],
     },
   ];
 
@@ -271,7 +291,7 @@ export const HomePage: React.FC = () => {
       {/* 功能介绍（竖版） */}
       <div className="animate-slide-up" style={{animationDelay: '0.4s'}}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {features.map(({ icon: Icon, title, description, color, bgColor }) => (
+          {features.map(({ icon: Icon, title, description, color, bgColor, details }) => (
             <Card
               key={title}
               className="h-full overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-gray-200/70 dark:border-gray-800/70"
@@ -287,15 +307,17 @@ export const HomePage: React.FC = () => {
                   {/* Title */}
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-foreground mb-2">{title}</h3>
                   {/* Description */}
-                  <p className="text-gray-600 dark:text-muted-foreground leading-relaxed flex-1">
+                  <p className="text-gray-600 dark:text-muted-foreground leading-relaxed">
                     {description}
                   </p>
-                  {/* CTA */}
-                  <div className="mt-4">
-                    <Button variant="ghost" size="sm" className="px-0 text-blue-600 dark:text-blue-400 hover:underline">
-                      了解更多
-                    </Button>
-                  </div>
+                  {/* More details */}
+                  {Array.isArray(details) && details.length > 0 && (
+                    <ul className="mt-3 space-y-1 text-sm text-gray-600 dark:text-muted-foreground list-disc list-inside">
+                      {details.map((d: string, idx: number) => (
+                        <li key={idx}>{d}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </CardContent>
             </Card>

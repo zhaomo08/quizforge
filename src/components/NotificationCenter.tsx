@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { notificationSystem, Notification } from '@/utils/notificationSystem';
 import { useApp } from '@/contexts/AppContext';
+import { SiteIcon } from '@/components/icons/SiteIcon';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -80,9 +81,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
       case 'streak':
         return <Calendar className="h-5 w-5 text-orange-600" />;
       case 'reminder':
-        return <AlertCircle className="h-5 w-5 text-purple-600" />;
+        return <SiteIcon className="h-5 w-5 text-purple-600" />;
       default:
-        return <Bell className="h-5 w-5 text-gray-600" />;
+        return <SiteIcon className="h-5 w-5 text-primary" />;
     }
   };
 
@@ -110,7 +111,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center space-x-2">
-                <BellRing className="h-5 w-5" />
+                <SiteIcon className="h-5 w-5 text-primary" />
                 <span>通知中心</span>
                 {unreadCount > 0 && (
                   <Badge variant="destructive" className="ml-2">
@@ -145,7 +146,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="text-center py-12 px-6">
-                <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <SiteIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 dark:text-muted-foreground">
                   暂无通知
                 </p>
@@ -273,7 +274,7 @@ export const NotificationBell: React.FC = () => {
         onClick={() => setIsOpen(true)}
         className="relative"
       >
-        <Bell className="h-5 w-5" />
+        <SiteIcon className="h-5 w-5 text-primary" />
         {unreadCount > 0 && (
           <Badge 
             variant="destructive" 

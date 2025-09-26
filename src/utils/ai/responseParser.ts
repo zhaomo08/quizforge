@@ -33,6 +33,26 @@ const isolateJsonArray = (payload: string): string => {
   return payload.substring(start, end + 1);
 };
 
+// 尝试修复一些常见的小问题：
+// - 末尾多了逗号
+// - 引号使用中文全角或混用
+// - 带有多余注释/提示文本
+const tryFixCommonIssues = (payload: string): string => {
+  let s = payload
+    .replace(/\uFF1A/g, ':') // 全角冒号
+    .replace(/\u201c|\u201d|“|”/g, '"')
+    .replace(/\u2018|\u2019|‘|’/g, '\'')
+    .replace(/,\s*([\]\}])/g, '$1'); // 尾逗号
+
+  // 移除行内注释 // ...
+  s = s
+    .split('\n')
+    .map((line) => line.replace(/\s*\/\/.*$/, ''))
+    .join('\n');
+
+  return s.trim();
+};
+
 const ensureValidArray = (data: unknown): RawQuestion[] => {
   if (!Array.isArray(data)) {
     throw new Error('模型返回的数据不是数组格式');
@@ -81,11 +101,19 @@ export const parseModelResponse = (
   let parsed: RawQuestion[];
 
   try {
+    // 第一轮直接 parse
     const json = JSON.parse(isolated);
     parsed = ensureValidArray(json);
   } catch (error) {
-    console.error('JSON解析失败，原始响应:', isolated);
-    throw new Error(`模型 ${modelName} 返回的 JSON 格式无效，请重试`);
+    // 第二轮尝试修复常见问题后再解析
+    try {
+      const fixed = tryFixCommonIssues(isolated);
+      const json2 = JSON.parse(fixed);
+      parsed = ensureValidArray(json2);
+    } catch (error2) {
+      console.error('JSON解析失败，原始响应:', isolated);
+      throw new Error(`模型 ${modelName} 返回的 JSON 格式无效，请重试`);
+    }
   }
 
   if (parsed.length === 0) {

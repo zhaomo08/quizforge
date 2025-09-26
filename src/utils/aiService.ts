@@ -50,8 +50,18 @@ export class AIService {
 
   // 根据策略选择首选模型（若该模型不存在于 registry，则忽略）
   private static selectPreferredModelByStrategy(strategy: 'fast' | 'reasoning'): void {
+    // 若用户已手动选择模型，则不再用策略覆盖
+    try {
+      // modelRegistry 暴露 hasUserSelection（在 modelRegistry.ts 中新增）
+      // @ts-ignore - 访问可选方法以兼容旧实现
+      if (modelRegistry.hasUserSelection && modelRegistry.hasUserSelection()) {
+        return;
+      }
+    } catch {}
     const mapping: Record<'fast' | 'reasoning', string> = {
-      fast: 'qwen/qwen3-8b:free',
+      // 优先中文与稳定的 DeepSeek 3.1 作为速度优先的默认
+      fast: 'deepseek/deepseek-chat-v3.1:free',
+      // 推理优先使用 DeepSeek R1 0528
       reasoning: 'deepseek/deepseek-r1-0528:free',
     };
     const preferredId = mapping[strategy];
@@ -333,6 +343,12 @@ export class AIService {
 
   // 切换到指定模型
   static switchToModel(modelId: string): boolean {
+    // 优先标记为用户选择的模型，以避免被策略覆盖
+    // @ts-ignore - 使用新增的 API，旧实现回退到 setActiveModel
+    if (modelRegistry.setUserSelectedModel) {
+      // @ts-ignore
+      return modelRegistry.setUserSelectedModel(modelId);
+    }
     return modelRegistry.setActiveModel(modelId);
   }
 

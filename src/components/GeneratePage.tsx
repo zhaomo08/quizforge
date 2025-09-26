@@ -27,8 +27,10 @@ import {
   Menu,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Check
 } from 'lucide-react';
+import { SiteIcon } from '@/components/icons/SiteIcon';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { apiKeyUtils } from '@/utils/apiKeyUtils';
@@ -72,6 +74,21 @@ export const GeneratePage: React.FC = () => {
     settings: true,
     info: false
   });
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const modelPickerRef = React.useRef<HTMLDivElement | null>(null);
+
+  // 点击外部关闭模型选择器
+  useEffect(() => {
+    if (!showModelPicker) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (modelPickerRef.current && !modelPickerRef.current.contains(target)) {
+        setShowModelPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showModelPicker]);
 
   // 初始化移动端优化
   useEffect(() => {
@@ -486,26 +503,7 @@ export const GeneratePage: React.FC = () => {
           )}
           
           {/* Desktop Model Status */}
-          {!isMobile && modelHealth && (
-            <div className="flex items-center space-x-2 text-sm">
-              <div className="flex items-center space-x-1">
-                <div className={`w-2 h-2 rounded-full ${
-                  modelHealth.failedModels.length === 0 ? 'bg-green-500' : 
-                  modelHealth.failedModels.length < modelHealth.totalModels / 2 ? 'bg-yellow-500' : 'bg-red-500'
-                }`} />
-                <span className="text-gray-600 dark:text-muted-foreground">
-                  {modelHealth.currentModel.name}
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={updateModelHealth}
-              >
-                <RefreshCw className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
+          {/* 移除顶部模型选择器（见截图1要求） */}
         </div>
 
         {/* Mobile Menu */}
@@ -542,12 +540,10 @@ export const GeneratePage: React.FC = () => {
       {/* Status and Progress */}
       {(state.error || isGenerating) && (
         <Alert className={`mb-6 ${state.error?.includes('成功') || state.error?.includes('🎉') ? 'border-green-200 bg-green-50 dark:bg-green-950' : ''}`}>
-          {state.error?.includes('成功') || state.error?.includes('🎉') ? (
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          ) : isGenerating ? (
+          {isGenerating ? (
             <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
           ) : (
-            <AlertCircle className="h-4 w-4" />
+            <SiteIcon className={`h-4 w-4 ${state.error?.includes('成功') || state.error?.includes('🎉') ? 'text-green-700 dark:text-green-300' : 'text-primary'}`} />
           )}
           <AlertDescription className={state.error?.includes('成功') || state.error?.includes('🎉') ? 'text-green-800 dark:text-green-200' : ''}>
             {isGenerating ? (
@@ -573,7 +569,7 @@ export const GeneratePage: React.FC = () => {
         {/* 未登录用户提示 */}
         {!isAuthenticated && (
           <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950">
-            <Info className="h-4 w-4 text-blue-600" />
+            <SiteIcon className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-800 dark:text-blue-200">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -603,9 +599,57 @@ export const GeneratePage: React.FC = () => {
                   <CheckCircle className="h-5 w-5 text-green-600" />
                   <span className="text-green-800 dark:text-green-200">已登录，可使用免费AI模型</span>
                   {modelHealth && (
-                    <Badge variant="secondary" className={isMobile ? 'text-xs' : ''}>
-                      {modelHealth.currentModel.name}
-                    </Badge>
+                    <div className="relative" ref={modelPickerRef}>
+                      <Badge 
+                        variant="secondary" 
+                        role="button"
+                        tabIndex={0}
+                        aria-haspopup="listbox"
+                        aria-expanded={showModelPicker}
+                        className={`${isMobile ? 'text-xs' : ''} cursor-pointer select-none flex items-center gap-1 hover:ring-2 hover:ring-primary/30 hover:bg-secondary/80 transition`}
+                        onClick={() => setShowModelPicker((v) => !v)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setShowModelPicker((v) => !v);
+                          } else if (e.key === 'Escape') {
+                            setShowModelPicker(false);
+                          }
+                        }}
+                        title="点击切换免费模型"
+                      >
+                        {modelHealth.currentModel.name}
+                        <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                      </Badge>
+                      {showModelPicker && (
+                        <div className="absolute right-0 z-20 mt-2 w-64 bg-popover border rounded-md shadow-md p-2">
+                          <div className="text-xs text-muted-foreground px-2 pb-1">选择免费模型</div>
+                          <div className="max-h-64 overflow-y-auto" role="listbox">
+                            {AIService.getAllModels().map((m) => {
+                              const active = m.id === modelHealth.currentModel.model;
+                              return (
+                                <button
+                                  key={m.id}
+                                  role="option"
+                                  aria-selected={active}
+                                  className={`w-full flex items-center justify-between text-left px-2 py-1.5 rounded hover:bg-accent hover:text-accent-foreground ${active ? 'bg-accent/70' : ''}`}
+                                  onClick={() => {
+                                    const ok = AIService.switchToModel(m.id);
+                                    if (ok) {
+                                      setShowModelPicker(false);
+                                      updateModelHealth();
+                                    }
+                                  }}
+                                >
+                                  <span className="truncate">{m.name}</span>
+                                  {active && <Check className="h-4 w-4 opacity-80" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
                 <Button 

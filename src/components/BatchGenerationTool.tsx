@@ -22,7 +22,6 @@ interface BatchGenerationItem {
   category: string;
   difficulty: string;
   count: number;
-  strategy?: 'auto' | 'fast' | 'reasoning';
   status: 'pending' | 'generating' | 'completed' | 'failed';
   progress?: number;
   error?: string;
@@ -75,7 +74,6 @@ export const BatchGenerationTool: React.FC<BatchGenerationToolProps> = ({
       category: 'java',
       difficulty: 'medium',
       count: 10,
-      strategy: 'auto',
       status: 'pending'
     };
     setBatchItems([...batchItems, newItem]);
@@ -113,9 +111,7 @@ export const BatchGenerationTool: React.FC<BatchGenerationToolProps> = ({
     const template = {
       name: templateName.trim(),
       items: batchItems.map(({ id, status, progress, error, generatedCount, ...item }) => ({
-        ...item,
-        // 兼容旧模板：若无 strategy 则默认 auto
-        strategy: item.strategy ?? 'auto',
+        ...item
       }))
     };
 
@@ -316,20 +312,7 @@ export const BatchGenerationTool: React.FC<BatchGenerationToolProps> = ({
                         </SelectContent>
                       </Select>
 
-                      <Select
-                        value={(item.strategy ?? 'auto')}
-                        onValueChange={(value) => updateBatchItem(item.id, { strategy: value as 'auto' | 'fast' | 'reasoning' })}
-                        disabled={isGenerating}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">策略：自动</SelectItem>
-                          <SelectItem value="fast">策略：速度优先</SelectItem>
-                          <SelectItem value="reasoning">策略：推理优先</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {/* 策略选择已移除 */}
                     </div>
 
                     <Button

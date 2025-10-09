@@ -6,6 +6,15 @@ interface RawQuestion {
   correctAnswer: number;
   explanation?: string;
   difficulty?: string;
+  // 兼容字段
+  title?: string;
+  prompt?: string;
+  stem?: string;
+  问题?: string;
+  题目?: string;
+  question_text?: string;
+  questionText?: string;
+  answer?: string | number; // 有些模型用 answer 字段
 }
 
 const stripMarkdownFence = (payload: string): string => {
@@ -61,8 +70,54 @@ const ensureValidArray = (data: unknown): RawQuestion[] => {
   return data as RawQuestion[];
 };
 
+const normalizeQuestionText = (q: RawQuestion): string => {
+  const candidates = [
+    q.question,
+    q.title,
+    q.prompt,
+    q.stem,
+    (q as any)['问题'],
+    (q as any)['题目'],
+    (q as any).question_text,
+    (q as any).questionText,
+  ].filter((v) => typeof v === 'string') as string[];
+
+  const raw = candidates[0] ?? '';
+  // 去掉前缀编号/"第1题"/数字点等
+  return raw
+    .replace(/^第\s*\d+\s*[题|问]\s*[:：\.)]?\s*/u, '')
+    .replace(/^\s*\d+\s*[\.)、]\s*/u, '')
+    .trim();
+};
+
+const stripOptionPrefix = (opt: string, index: number): string => {
+  const letter = String.fromCharCode(65 + index);
+  return opt
+    .replace(new RegExp(`^\s*${letter}\s*[\.|。|、|:|：|\)|\]›\-]+\s*`, 'i'), '')
+    .trim();
+};
+
+const normalizeCorrectAnswer = (q: RawQuestion): number => {
+  let ca: any = (q as any).correctAnswer;
+  if (typeof ca === 'undefined' || ca === null) ca = (q as any).answer;
+
+  // 字母 A-D
+  if (typeof ca === 'string') {
+    const s = ca.trim().toUpperCase();
+    if (['A', 'B', 'C', 'D'].includes(s)) return s.charCodeAt(0) - 65;
+    const asNum = Number(s);
+    if (!Number.isNaN(asNum)) ca = asNum; // 继续走数字逻辑
+  }
+  if (typeof ca === 'number') {
+    if (ca >= 0 && ca <= 3) return ca;
+    if (ca >= 1 && ca <= 4) return ca - 1; // 1-4 改为 0-3
+  }
+  return -1;
+};
+
 const validateQuestionShape = (question: RawQuestion, index: number, modelName: string): void => {
-  if (!question.question) {
+  const stem = normalizeQuestionText(question);
+  if (!stem || stem.trim().length === 0) {
     throw new Error(`模型 ${modelName} 生成的第 ${index + 1} 题缺少题干`);
   }
 
@@ -70,11 +125,8 @@ const validateQuestionShape = (question: RawQuestion, index: number, modelName: 
     throw new Error(`模型 ${modelName} 生成的第 ${index + 1} 题必须包含 4 个选项`);
   }
 
-  if (
-    typeof question.correctAnswer !== 'number' ||
-    question.correctAnswer < 0 ||
-    question.correctAnswer > 3
-  ) {
+  const ca = normalizeCorrectAnswer(question);
+  if (ca < 0 || ca > 3) {
     throw new Error(`模型 ${modelName} 生成的第 ${index + 1} 题正确答案索引无效`);
   }
 };
@@ -123,12 +175,19 @@ export const parseModelResponse = (
   return parsed.map((item, index): Question => {
     validateQuestionShape(item, index, modelName);
 
+    // 规范化题干
+    const stem = normalizeQuestionText(item);
+    // 规范化选项：去掉 A./A、 等前缀
+    const cleanedOptions = (item.options || []).map((opt, i) => stripOptionPrefix(String(opt ?? ''), i));
+    // 规范化正确答案
+    const ca = normalizeCorrectAnswer(item);
+
     return {
       id: `ai_${category}_${Date.now()}_${index}`,
       category,
-      question: item.question,
-      options: item.options,
-      correctAnswer: item.correctAnswer,
+      question: stem,
+      options: cleanedOptions,
+      correctAnswer: ca,
       explanation: item.explanation || '暂无解释',
       difficulty: item.difficulty || difficulty,
       createdAt: new Date().toISOString(),

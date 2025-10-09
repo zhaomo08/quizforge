@@ -1,41 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Loader2, 
-  Key, 
-  Plus, 
-  CheckCircle, 
+import {
+  Loader2,
+  Key,
   AlertCircle,
-  ArrowLeft,
-  Settings,
   Sparkles,
-  Brain,
-  RefreshCw,
   Eye,
-  Info,
-  TrendingUp,
-  Layers,
-  Star,
-  AlertTriangle,
-  Zap,
-  Menu,
+  EyeOff,
   X,
+  Check,
+  Menu,
+  CheckCircle,
   ChevronDown,
   ChevronUp,
-  Check
+  Info,
+  TrendingUp,
+  Star,
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
-import { SiteIcon } from '@/components/icons/SiteIcon';
 import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { apiKeyUtils } from '@/utils/apiKeyUtils';
 import { AIService } from '@/utils/aiService';
 import { storage } from '@/utils/storage';
+// 删除不存在的 GenerationResult 类型
+import { SiteIcon } from '@/components/icons/SiteIcon';
 import { GenerationAnalytics } from '@/utils/generationAnalytics';
 import { SmartGenerationAssistant } from './SmartGenerationAssistant';
 import { BatchGenerationTool } from './BatchGenerationTool';
@@ -45,7 +40,7 @@ import { BackButton } from '@/components/BackButton';
 export const GeneratePage: React.FC = () => {
   const { state, dispatch } = useApp();
   const { isAuthenticated, user } = useAuth();
-  const { isMobile, isTablet, screenSize, isTouchDevice } = useMobile();
+  const { isMobile, isTouchDevice } = useMobile();
   
   // 简化 API Key 逻辑，不再在生成页面显示 API Key 设置
   const userApiKey = isAuthenticated && user ? apiKeyUtils.getDefaultApiKey(user.id) : null;
@@ -53,7 +48,7 @@ export const GeneratePage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('java');
   const [questionCount, setQuestionCount] = useState('10');
   const [difficulty, setDifficulty] = useState('medium');
-  const [strategy, setStrategy] = useState<'auto' | 'fast' | 'reasoning'>('auto');
+  // strategy 已移除（用户不再可配置，内部逻辑统一交给 AIService 自适应）
   const [isGenerating, setIsGenerating] = useState(false);
   
   // 新增状态 - 渐进式添加
@@ -165,7 +160,7 @@ export const GeneratePage: React.FC = () => {
         category: selectedCategory,
         count: parseInt(questionCount),
         difficulty,
-        strategy: strategy === 'auto' ? undefined : (strategy as 'fast' | 'reasoning'),
+  // 不再传递 strategy，AIService 内部自行决定
         userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
       });
       
@@ -216,7 +211,7 @@ export const GeneratePage: React.FC = () => {
       
       dispatch({ 
         type: 'SET_ERROR', 
-        payload: `🎉 成功生成 ${questions.length} 道 ${categories.find(c => c.id === selectedCategory)?.name} 题目！平均质量: ${Math.round(averageQuality)}%` 
+        payload: `🎉 成功生成 ${questions.length} 道 ${categories.find(c => c.id === selectedCategory)?.name} 题目！平均质量: ${Math.round(averageQuality)}% | 使用模型: ${modelInfo.name}` 
       });
       
       // Clear success message after 8 seconds
@@ -265,7 +260,7 @@ export const GeneratePage: React.FC = () => {
         category: selectedCategory,
         count: previewCount,
         difficulty,
-        strategy: strategy === 'auto' ? undefined : (strategy as 'fast' | 'reasoning'),
+  // 不再传递 strategy，AIService 内部自行决定
         userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
       });
       
@@ -398,8 +393,8 @@ export const GeneratePage: React.FC = () => {
           category: item.category,
           count: item.count,
           difficulty: item.difficulty,
-          strategy: item.strategy && item.strategy !== 'auto' ? (item.strategy as 'fast' | 'reasoning') : undefined,
-          userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
+          // strategy 已移除，AIService 内部自适应
+          userId: user?.id,
         });
         
         // 如果用户已登录，更新API Key的最后使用时间
@@ -459,7 +454,7 @@ export const GeneratePage: React.FC = () => {
 
     dispatch({ 
       type: 'SET_ERROR', 
-      payload: `🎉 批量生成完成！成功 ${successCount}/${batchItems.length} 个任务，共生成 ${totalQuestions} 道题目` 
+      payload: `🎉 批量生成完成！成功 ${successCount}/${batchItems.length} 个任务，共生成 ${totalQuestions} 道题目 | 使用模型: ${AIService.getCurrentModelInfo().name}` 
     });
 
     setTimeout(() => {
@@ -681,11 +676,11 @@ export const GeneratePage: React.FC = () => {
                     生成设置
                   </div>
                   {isMobile && (
-                    expandedSections.settings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    expandedSections['settings'] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                   )}
                 </CardTitle>
               </CardHeader>
-              {(!isMobile || expandedSections.settings) && (
+              {(!isMobile || expandedSections['settings']) && (
                 <CardContent className="space-y-6">
                   {/* Category Selection */}
                   <div>
@@ -752,19 +747,7 @@ export const GeneratePage: React.FC = () => {
                       </Select>
                     </div>
 
-                    <div>
-                      <Label htmlFor="strategy">生成策略</Label>
-                      <Select value={strategy} onValueChange={(v) => setStrategy(v as 'auto' | 'fast' | 'reasoning')}>
-                        <SelectTrigger className={isMobile ? 'h-12 text-base' : ''}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">自动（按难度：hard→推理，其它→速度）</SelectItem>
-                          <SelectItem value="fast">速度优先（适合常规出题）</SelectItem>
-                          <SelectItem value="reasoning">推理优先（适合复杂解析）</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {/* 生成策略选择已按需求移除 */}
                   </div>
                 </CardContent>
               )}
@@ -805,11 +788,11 @@ export const GeneratePage: React.FC = () => {
                     使用说明
                   </div>
                   {isMobile && (
-                    expandedSections.info ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    expandedSections['info'] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                   )}
                 </CardTitle>
               </CardHeader>
-              {(!isMobile || expandedSections.info) && (
+              {(!isMobile || expandedSections['info']) && (
                 <CardContent className="p-6">
                   <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-1 lg:grid-cols-2 gap-6'}`}>
                     <div className="flex items-start space-x-3">

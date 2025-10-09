@@ -9,25 +9,23 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, 
   Key, 
-  Plus, 
-  CheckCircle, 
   AlertCircle,
-  ArrowLeft,
   Settings,
   Sparkles,
   Brain,
   RefreshCw,
-  Eye,
   Info,
-  TrendingUp,
-  Layers,
   Star,
   AlertTriangle,
   Zap,
   Menu,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CheckCircle,
+  Eye,
+  TrendingUp,
+  Layers
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { AIService } from '@/utils/aiService';
@@ -40,7 +38,7 @@ import { BackButton } from '@/components/BackButton';
 
 export const MobileOptimizedGeneratePage: React.FC = () => {
   const { state, dispatch } = useApp();
-  const { isMobile, isTablet, screenSize, isTouchDevice } = useMobile();
+  const { isMobile, isTouchDevice } = useMobile();
   
   const [apiKey, setApiKey] = useState(state.apiKey || '');
   const [selectedCategory, setSelectedCategory] = useState('java');
@@ -578,11 +576,11 @@ export const MobileOptimizedGeneratePage: React.FC = () => {
                 API Key 设置
               </div>
               {isMobile && (
-                expandedSections.apiKey ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                expandedSections['apiKey'] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
               )}
             </CardTitle>
           </CardHeader>
-          {(!isMobile || expandedSections.apiKey) && (
+          {(!isMobile || expandedSections['apiKey']) && (
             <CardContent>
               {showApiKeyInput ? (
                 <div className="space-y-4">
@@ -669,11 +667,11 @@ export const MobileOptimizedGeneratePage: React.FC = () => {
                     生成设置
                   </div>
                   {isMobile && (
-                    expandedSections.settings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    expandedSections['settings'] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                   )}
                 </CardTitle>
               </CardHeader>
-              {(!isMobile || expandedSections.settings) && (
+              {(!isMobile || expandedSections['settings']) && (
                 <CardContent className="space-y-6">
                   {/* Category Selection */}
                   <div>
@@ -779,11 +777,11 @@ export const MobileOptimizedGeneratePage: React.FC = () => {
                     使用说明
                   </div>
                   {isMobile && (
-                    expandedSections.info ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    expandedSections['info'] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                   )}
                 </CardTitle>
               </CardHeader>
-              {(!isMobile || expandedSections.info) && (
+              {(!isMobile || expandedSections['info']) && (
                 <CardContent className="p-6">
                   <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-1 lg:grid-cols-2 gap-6'}`}>
                     <div className="flex items-start space-x-3">

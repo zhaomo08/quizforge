@@ -36,13 +36,13 @@
 ```bash
 git clone <repository-url>
 cd quizforge
-```
+```text
 
 ### 2. 安装依赖
 
 ```bash
 npm install
-```
+```text
 
 ### 3. 环境配置
 
@@ -76,6 +76,33 @@ npm run dev
 npm run build
 ```
 
+## 自定义站点图标
+
+已在 `index.html` 中配置多尺寸站点图标引用：
+
+```text
+site-icon.png            (回退)
+site-icon-32.png         (favicon 32x32)
+site-icon-180.png        (Apple Touch Icon)
+site-icon-192.png        (Android / PWA 推荐)
+site-icon.svg            (可选，用于 mask-icon)
+```
+
+请将上述文件放入 `public/` 目录。例如：`public/site-icon-32.png`。
+
+如果你仅有一张大图（例如 768x768 PNG），可以用以下命令快速生成不同尺寸：
+
+```bash
+magick source.png -resize 32x32 public/site-icon-32.png \
+  -resize 180x180 public/site-icon-180.png \
+  -resize 192x192 public/site-icon-192.png
+cp source.png public/site-icon.png
+```
+
+没有安装 ImageMagick 时，可使用 macOS 预览另存尺寸或在线转换工具。SVG 版本命名为 `site-icon.svg` 后放入 `public/` 可启用 pinned tab / mask-icon 支持。
+
+后续若添加 PWA，可创建 `public/manifest.webmanifest` 并在 `<head>` 中取消注释 manifest 链接。
+
 ### 6. 预览生产版本
 
 ```bash
@@ -93,7 +120,7 @@ npm run preview
 
 ## 📁 项目结构
 
-```
+```text
 src/
 ├── components/          # React组件
 │   ├── auth/           # 认证相关组件

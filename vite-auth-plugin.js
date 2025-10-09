@@ -1,4 +1,3 @@
-import { auth } from './src/lib/auth.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 

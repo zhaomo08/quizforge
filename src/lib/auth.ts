@@ -3,8 +3,9 @@
 import { betterAuth } from "better-auth";
 
 // 获取Google OAuth配置
-const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '';
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.VITE_GOOGLE_CLIENT_SECRET || '';
+// 使用索引访问以兼容 noPropertyAccessFromIndexSignature
+const googleClientId = (process.env && (process.env as any)["GOOGLE_CLIENT_ID"]) || (process.env && (process.env as any)["VITE_GOOGLE_CLIENT_ID"]) || '';
+const googleClientSecret = (process.env && (process.env as any)["GOOGLE_CLIENT_SECRET"]) || (process.env && (process.env as any)["VITE_GOOGLE_CLIENT_SECRET"]) || '';
 
 // 检查是否有真实的Google OAuth配置
 const hasGoogleConfig = googleClientId && 
@@ -12,10 +13,11 @@ const hasGoogleConfig = googleClientId &&
                        googleClientId !== 'demo_client_id' &&
                        googleClientSecret !== 'demo_client_secret';
 
-if (import.meta.env.DEV) {
-  // 开发环境可按需打开调试
-  // console.log('Better Auth Config:', { hasGoogleConfig, clientIdLength: googleClientId?.length || 0, secretLength: googleClientSecret?.length || 0 });
-}
+// 避免在 Node (Vite 配置阶段) 访问 import.meta.env 导致报错，调试输出可按需开启
+// const isDev = (process && process.env && (process.env as any)["NODE_ENV"] !== 'production');
+// if (isDev) {
+//   console.log('[auth] Google config present:', !!hasGoogleConfig);
+// }
 
 export const auth = betterAuth({
   emailAndPassword: {

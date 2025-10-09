@@ -12,9 +12,11 @@ export interface GoogleOAuthConfig {
 /**
  * 检查 Google OAuth 配置状态
  */
+import { env } from '@/lib/env';
+
 export const getGoogleOAuthConfig = (): GoogleOAuthConfig => {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-  const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET || '';
+  const clientId = env.VITE_GOOGLE_CLIENT_ID || '';
+  const clientSecret = env.VITE_GOOGLE_CLIENT_SECRET || '';
   
   const isDemoMode = clientId === 'demo_client_id' || 
                      clientId === '' || 
@@ -63,7 +65,7 @@ export const validateGoogleOAuthConfig = (): {
   }
   
   // 检查基础 URL 配置
-  const baseURL = import.meta.env.VITE_BETTER_AUTH_URL;
+  const baseURL = env.VITE_BETTER_AUTH_URL;
   if (!baseURL) {
     errors.push('缺少 VITE_BETTER_AUTH_URL 配置');
   }
@@ -171,7 +173,7 @@ export const collectDebugInfo = () => {
       isSecureContext: isGoogleOAuthSupported()
     },
     betterAuth: {
-      baseURL: import.meta.env.VITE_BETTER_AUTH_URL,
+      baseURL: env.VITE_BETTER_AUTH_URL,
       mode: import.meta.env.MODE,
       dev: import.meta.env.DEV
     }

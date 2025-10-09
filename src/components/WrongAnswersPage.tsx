@@ -10,18 +10,20 @@ import {
   XCircle,
   RotateCcw,
   Trash2,
-  ArrowLeft,
+  Home,
+  RefreshCw,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { storage } from '@/utils/storage';
 import { WrongAnswer } from '@/types';
-import { BackButton } from '@/components/BackButton';
 import { PageHeader } from '@/components/PageHeader';
 
 export const WrongAnswersPage: React.FC = () => {
   const { dispatch } = useApp();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [wrongAnswers, setWrongAnswers] = useState<WrongAnswer[]>(
@@ -77,6 +79,7 @@ export const WrongAnswersPage: React.FC = () => {
     if (questions.length === 0) return;
 
     dispatch({ type: 'START_TEST', payload: questions });
+    navigate('/test');
   };
 
   const getCategoryName = (categoryId: string) => {
@@ -110,7 +113,7 @@ export const WrongAnswersPage: React.FC = () => {
               你还没有做错过任何题目，继续保持！
             </p>
             <Button
-              onClick={() => dispatch({ type: 'SET_PAGE', payload: 'category' })}
+              onClick={() => navigate('/category')}
               className="bg-blue-600 hover:bg-blue-700"
             >
               开始答题

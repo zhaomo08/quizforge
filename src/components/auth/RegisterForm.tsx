@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { env } from '@/lib/env';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -94,8 +95,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     
     try {
       // 检查是否配置了真实的 Google OAuth
-      const hasRealGoogleConfig = import.meta.env.VITE_GOOGLE_CLIENT_ID && 
-                                  import.meta.env.VITE_GOOGLE_CLIENT_ID !== 'demo_client_id';
+  const hasRealGoogleConfig = env.VITE_GOOGLE_CLIENT_ID && 
+              env.VITE_GOOGLE_CLIENT_ID !== 'demo_client_id';
       
       if (!hasRealGoogleConfig) {
         // 演示模式 - 模拟 Google 注册成功
@@ -286,12 +287,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
               />
             </svg>
             使用 Google 注册
-            {import.meta.env.VITE_GOOGLE_CLIENT_ID === 'demo_client_id' && (
+            {env.VITE_GOOGLE_CLIENT_ID === 'demo_client_id' && (
               <span className="ml-1 text-xs text-gray-500">（演示）</span>
             )}
           </Button>
           
-          {import.meta.env.VITE_GOOGLE_CLIENT_ID === 'demo_client_id' && (
+          {env.VITE_GOOGLE_CLIENT_ID === 'demo_client_id' && (
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
               要启用真实的 Google 登录，请查看 GOOGLE_OAUTH_SETUP.md
             </p>

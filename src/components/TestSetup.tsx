@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Play, Settings } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { testUtils } from '@/utils/testUtils';
 
 export const TestSetup: React.FC = () => {
   const { state, dispatch } = useApp();
+  const navigate = useNavigate();
   const [questionCount, setQuestionCount] = useState('10');
 
   const handleStartTest = () => {
@@ -20,6 +22,7 @@ export const TestSetup: React.FC = () => {
     }
 
     dispatch({ type: 'START_TEST', payload: questions });
+    navigate('/test');
   };
 
   const availableQuestions = testUtils.selectRandomQuestions(state.selectedCategory, 1000).length;
@@ -43,7 +46,7 @@ export const TestSetup: React.FC = () => {
       <div className="flex items-center mb-8">
         <Button
           variant="ghost"
-          onClick={() => dispatch({ type: 'SET_PAGE', payload: 'category' })}
+          onClick={() => navigate('/category')}
           className="mr-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

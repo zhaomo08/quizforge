@@ -8,8 +8,6 @@ import {
   TestTube, 
   FileText, 
   ExternalLink,
-  CheckCircle,
-  AlertCircle,
   AlertTriangle
 } from 'lucide-react';
 import { GoogleOAuthStatus } from './GoogleOAuthStatus';

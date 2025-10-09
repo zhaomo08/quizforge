@@ -1,4 +1,6 @@
 import { TestResult, Question } from '@/types';
+// PDF 相关依赖（在 package.json 中已添加 jspdf 与 jspdf-autotable）
+// 使用动态导入减少初始包体积: 在调用导出时再加载。
 import { storage } from './storage';
 import { testUtils } from './testUtils';
 
@@ -357,15 +359,71 @@ export const reportGenerator = {
     return text;
   },
 
-  downloadReport: (report: LearningReport, format: 'json' | 'txt' = 'txt') => {
-    const content = format === 'json' 
-      ? reportGenerator.exportToJSON(report)
-      : reportGenerator.exportToText(report);
-    
-    const blob = new Blob([content], { 
-      type: format === 'json' ? 'application/json' : 'text/plain' 
-    });
-    
+  exportToHTML: (report: LearningReport): string => {
+    const { summary, categoryAnalysis, achievements, recommendations, wrongAnswerAnalysis } = report;
+    // 独立可打印的简洁 HTML，使用内联样式避免外部依赖
+    return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8" />
+      <title>学习报告</title>
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <style>
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans SC','Noto Sans CJK SC','Microsoft YaHei',sans-serif;line-height:1.55;margin:32px;background:#f7f9fc;color:#222;}
+        h1,h2{margin:0 0 12px;font-weight:600;}
+        h1{font-size:26px;color:#1d4ed8;}
+        h2{font-size:18px;margin-top:28px;border-left:4px solid #3b82f6;padding-left:8px;}
+        table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px;background:#fff;}
+        th,td{border:1px solid #e5e7eb;padding:6px 8px;text-align:left;vertical-align:top;}
+        th{background:#f1f5f9;font-weight:600;}
+        .badge{display:inline-block;padding:2px 8px;border-radius:12px;background:#e0f2fe;color:#0369a1;font-size:12px;margin-right:4px;}
+        .muted{color:#6b7280;font-size:12px;}
+        .footer{margin-top:40px;font-size:12px;color:#6b7280;text-align:center;}
+        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0;}
+        .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;box-shadow:0 2px 4px -2px rgba(0,0,0,.05);} 
+        .card h3{margin:0 0 6px;font-size:14px;color:#334155;}
+        .tag-low{color:#dc2626;font-weight:600;}
+        .tag-mid{color:#d97706;font-weight:600;}
+        .tag-high{color:#16a34a;font-weight:600;}
+        @media print {body{background:#fff;margin:8mm;} .no-print{display:none;} }
+      </style></head><body>
+      <h1>学习报告</h1>
+      <div class="muted">生成时间：${new Date(report.generatedAt).toLocaleString('zh-CN')} | 统计周期：${new Date(report.period.start).toLocaleDateString('zh-CN')} - ${new Date(report.period.end).toLocaleDateString('zh-CN')}</div>
+      <h2>总体概览</h2>
+      <div class="grid">
+        <div class="card"><h3>测试次数</h3><strong>${summary.totalTests}</strong></div>
+        <div class="card"><h3>总题数</h3><strong>${summary.totalQuestions}</strong></div>
+        <div class="card"><h3>正确答题</h3><strong>${summary.correctAnswers}</strong></div>
+        <div class="card"><h3>平均得分</h3><strong>${summary.averageScore}%</strong></div>
+        <div class="card"><h3>进步幅度</h3><strong>${summary.improvementRate>0?'+':''}${summary.improvementRate}%</strong></div>
+      </div>
+      <h2>分类表现</h2>
+      <table><thead><tr><th>分类</th><th>测试次数</th><th>平均得分</th><th>进步</th><th>优势</th><th>不足</th></tr></thead><tbody>
+        ${categoryAnalysis.map(c=>`<tr><td>${c.category}</td><td>${c.tests}</td><td>${c.avgScore}%</td><td>${c.improvement>0?'+':''}${c.improvement}%</td><td>${c.strengths.join('<br/>')||'-'}</td><td>${c.weaknesses.join('<br/>')||'-'}</td></tr>`).join('')}
+      </tbody></table>
+      <h2>获得成就</h2>
+      ${achievements.length? achievements.map(a=>`<span class="badge" title="${a.description}">${a.title}</span>`).join(' '):'<div class="muted">暂无</div>'}
+      <h2>学习建议</h2>
+      ${recommendations.length? '<ul>'+recommendations.map(r=>`<li><strong class="tag-${r.priority}">[${r.priority.toUpperCase()}]</strong> ${r.suggestion}<div class="muted">原因：${r.reason}</div></li>`).join('')+'</ul>':'<div class="muted">暂无特别建议</div>'}
+      <h2>错题分析</h2>
+      <div>错题总数：${wrongAnswerAnalysis.totalWrongAnswers}</div>
+      ${wrongAnswerAnalysis.commonMistakes.length?`<table><thead><tr><th>模式</th><th>频次</th><th>涉及分类</th></tr></thead><tbody>${wrongAnswerAnalysis.commonMistakes.map(m=>`<tr><td>${m.pattern}</td><td>${m.frequency}</td><td>${m.categories.join(', ')}</td></tr>`).join('')}</tbody></table>`:'<div class="muted">暂无显著错题模式</div>'}
+      <div style="margin-top:8px;">重点改进领域：${wrongAnswerAnalysis.improvementAreas.join('、')||'暂无'}</div>
+      <div class="footer no-print">可使用浏览器 “打印”(⌘+P) 另存为 PDF 以获得更好的中文支持。</div>
+      </body></html>`;
+  },
+
+  downloadReport: (report: LearningReport, format: 'json' | 'txt' | 'html' = 'txt') => {
+    let content: string;
+    let mime: string;
+    if (format === 'json') {
+      content = reportGenerator.exportToJSON(report);
+      mime = 'application/json';
+    } else if (format === 'html') {
+      content = reportGenerator.exportToHTML(report);
+      mime = 'text/html';
+    } else {
+      content = reportGenerator.exportToText(report);
+      mime = 'text/plain';
+    }
+    const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -374,5 +432,186 @@ export const reportGenerator = {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  },
+
+  exportToPDF: async (report: LearningReport) => {
+    // 动态导入，避免在未使用 PDF 时增加初始 bundle
+    // @ts-ignore 动态导入无类型
+    const [{ default: jsPDF }] = await Promise.all([
+      // @ts-ignore
+      import('jspdf'),
+      // @ts-ignore 仅需 side-effect 注入 autoTable
+      import('jspdf-autotable')
+    ]);
+
+    // jsPDF 类型
+    // @ts-ignore - autotable 会通过 side-effect 注入到 jsPDF 实例
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+    // ---- 解决中文乱码：动态加载支持中文的字体 (需将字体文件放在 public/fonts 下) ----
+    // 使用 NotoSansSC-Regular.ttf (SIL Open Font License) 或其它开源中文字体
+    // 由于内置 helvetica 不支持 CJK，需要手动嵌入。
+    async function ensureChineseFont() {
+      const desiredFontName = 'NotoSansSC';
+      try {
+        // 如果已经注册过，直接切换
+        const fontList: Record<string, string[]> = (doc as any).getFontList?.() || {};
+        if (Object.keys(fontList).some(fname => fname.toLowerCase() === desiredFontName.toLowerCase())) {
+          doc.setFont(desiredFontName, 'normal');
+          return true;
+        }
+        // 按优先顺序尝试加载字体文件: TTF > OTF
+        const candidates = [
+          { path: '/fonts/NotoSansSC-Regular.ttf', vfsName: 'NotoSansSC-Regular.ttf' },
+          { path: '/fonts/NotoSansSC-Regular.TTF', vfsName: 'NotoSansSC-Regular.TTF' },
+          { path: '/fonts/NotoSansSC-Regular.otf', vfsName: 'NotoSansSC-Regular.otf' },
+          { path: '/fonts/NotoSansSC-Subset.ttf', vfsName: 'NotoSansSC-Subset.ttf' },
+        ];
+
+        let loaded = false;
+        for (const c of candidates) {
+          try {
+            const resp = await fetch(c.path);
+            if (!resp.ok) continue;
+            const buffer = await resp.arrayBuffer();
+            const uint8 = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+            const base64 = btoa(binary);
+            (doc as any).addFileToVFS(c.vfsName, base64);
+            (doc as any).addFont(c.vfsName, desiredFontName, 'normal');
+            // 测试一个常用汉字是否可测量宽度，如果失败说明 cmap 不兼容
+            doc.setFont(desiredFontName, 'normal');
+            doc.setFontSize(12);
+            const w = (doc as any).getStringUnitWidth?.('测');
+            if (!w || isNaN(w)) throw new Error('字体未提供有效宽度（可能是 OTF CFF 未被 jsPDF 支持）');
+            loaded = true;
+            break;
+          } catch (inner) {
+            // 继续尝试下一个候选
+            continue;
+          }
+        }
+        if (!loaded) {
+          console.warn('[PDF] 未能成功加载可用中文字体（需要 TTF 带 Unicode cmap）。将使用内置 helvetica。');
+          return false;
+        }
+        return true;
+      } catch (e) {
+        console.warn('[PDF] 加载中文字体失败，继续使用默认字体。', e);
+        return false;
+      }
+    }
+
+    const chineseFontReady = await ensureChineseFont();
+
+    const marginX = 40;
+    let cursorY = 50;
+
+    const addTitle = (text: string, fontSize = 18) => {
+      doc.setFontSize(fontSize);
+      doc.setTextColor(40, 40, 40);
+      doc.text(text, marginX, cursorY);
+      cursorY += fontSize + 10;
+    };
+
+    const addParagraph = (text: string, fontSize = 11, lineHeight = 16) => {
+      doc.setFontSize(fontSize);
+      doc.setTextColor(70, 70, 70);
+      const lines = doc.splitTextToSize(text, 520);
+      lines.forEach((line: string) => {
+        if (cursorY > 760) { // 分页
+          doc.addPage();
+          cursorY = 50;
+        }
+        doc.text(line, marginX, cursorY);
+        cursorY += lineHeight;
+      });
+      cursorY += 4;
+    };
+
+    // 封面 / 基本信息
+  addTitle('学习报告', 22);
+    addParagraph(`生成时间: ${new Date(report.generatedAt).toLocaleString('zh-CN')}`);
+    addParagraph(`统计周期: ${new Date(report.period.start).toLocaleDateString('zh-CN')} - ${new Date(report.period.end).toLocaleDateString('zh-CN')}`);
+    addParagraph(`总体概览: 测试次数 ${report.summary.totalTests} · 总题数 ${report.summary.totalQuestions} · 平均得分 ${report.summary.averageScore}% · 正确答题 ${report.summary.correctAnswers}`);
+    addParagraph(`进步幅度: ${report.summary.improvementRate > 0 ? '+' : ''}${report.summary.improvementRate}%`);
+    cursorY += 10;
+
+    // 分类表现表格
+    if (report.categoryAnalysis.length) {
+      addTitle('分类表现');
+      // @ts-ignore autotable
+      doc.autoTable({
+        startY: cursorY,
+        head: [['分类', '测试次数', '平均得分', '进步', '优势', '不足']],
+        body: report.categoryAnalysis.map(c => [
+          c.category,
+          String(c.tests),
+            c.avgScore + '%',
+          (c.improvement > 0 ? '+' : '') + c.improvement + '%',
+          c.strengths.join('\n') || '-',
+          c.weaknesses.join('\n') || '-'
+        ]),
+        styles: { font: chineseFontReady ? 'NotoSansSC' : 'helvetica', fontSize: 9, cellPadding: 4, overflow: 'linebreak' },
+        headStyles: { fillColor: [59,130,246] },
+        columnStyles: { 4: { cellWidth: 90 }, 5: { cellWidth: 90 } },
+        didDrawPage: (data: any) => {
+          cursorY = data.cursor.y + 20;
+        }
+      });
+    }
+
+    // 成就
+    if (cursorY > 720) { doc.addPage(); cursorY = 50; }
+    addTitle('获得成就');
+    if (report.achievements.length) {
+      report.achievements.forEach(a => {
+        addParagraph(`• ${a.title}: ${a.description}`);
+      });
+    } else {
+      addParagraph('暂无成就记录');
+    }
+
+    // 学习建议
+    if (cursorY > 720) { doc.addPage(); cursorY = 50; }
+    addTitle('学习建议');
+    if (report.recommendations.length) {
+      report.recommendations.forEach(r => {
+        addParagraph(`• [${r.priority.toUpperCase()}] ${r.suggestion} (原因: ${r.reason})`);
+      });
+    } else {
+      addParagraph('暂无特别建议');
+    }
+
+    // 错题分析
+    if (cursorY > 720) { doc.addPage(); cursorY = 50; }
+    addTitle('错题分析');
+    addParagraph(`错题总数: ${report.wrongAnswerAnalysis.totalWrongAnswers}`);
+    if (report.wrongAnswerAnalysis.commonMistakes.length) {
+      // @ts-ignore autotable
+      doc.autoTable({
+        startY: cursorY,
+        head: [['模式', '频次', '涉及分类']],
+        body: report.wrongAnswerAnalysis.commonMistakes.map(m => [m.pattern, String(m.frequency), m.categories.join(', ')]),
+        styles: { font: chineseFontReady ? 'NotoSansSC' : 'helvetica', fontSize: 9 },
+        headStyles: { fillColor: [244,114,182] },
+        didDrawPage: (data: any) => {
+          cursorY = data.cursor.y + 20;
+        }
+      });
+    }
+    addParagraph(`重点改进领域: ${report.wrongAnswerAnalysis.improvementAreas.join('、') || '暂无'}`);
+
+    // 页脚
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setTextColor(150);
+      doc.text(`第 ${i} / ${pageCount} 页 - QuizForge 学习报告`, 300, 820, { align: 'center' });
+    }
+
+    doc.save(`学习报告_${new Date().toISOString().split('T')[0]}.pdf`);
   }
 };

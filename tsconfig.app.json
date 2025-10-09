@@ -16,8 +16,14 @@
 
     /* Linting */
     "strict": true,
-  "noUnusedLocals": false,
-  "noUnusedParameters": false,
+    // 逐步提升严格性：先开启 noUnusedLocals / noUnusedParameters 观察影响
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    // 更细粒度安全
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
 
     /* for ShadCN */

@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-
-import { Home, Brain, BookOpen, BarChart3, Settings, LogIn } from 'lucide-react';
+import { Home, Brain, BookOpen, BarChart3, Settings, } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { pageToPath, pathToPage } from '@/routes';
 import { useApp } from '@/contexts/AppContext';
-import { useAuth } from '@/components/auth/AuthProvider';
 import { UserMenu } from '@/components/auth/UserMenu';
-import { AuthPage } from '@/components/auth/AuthPage';
 import { ThemeToggle } from './ThemeToggle';
 import { NotificationBell } from './NotificationCenter';
 
 export const Navigation: React.FC = () => {
-  const { state, dispatch } = useApp();
+  const { dispatch } = useApp();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentPage = pathToPage[location.pathname] || 'home';
 
-  const navigationItems = [
+  const navigationItems: { id: string; label: string; icon: React.ComponentType<any> }[] = [
     { id: 'home', label: '首页', icon: Home },
     { id: 'analytics', label: '学习分析', icon: BarChart3 },
     { id: 'generate', label: 'AI出题', icon: Brain },
@@ -21,8 +23,13 @@ export const Navigation: React.FC = () => {
   ];
 
   const handleNavigation = (page: string) => {
-    dispatch({ type: 'SET_PAGE', payload: page });
-    dispatch({ type: 'RESET_TEST' });
+    const path = pageToPath[page];
+    if (path && path !== location.pathname) {
+      // 仍然同步 context 以兼容旧逻辑
+      dispatch({ type: 'SET_PAGE', payload: page });
+      dispatch({ type: 'RESET_TEST' });
+      navigate(path);
+    }
   };
 
   return (
@@ -39,11 +46,11 @@ export const Navigation: React.FC = () => {
               {navigationItems.map(({ id, label, icon: Icon }) => (
                 <Button
                   key={id}
-                  variant={state.currentPage === id ? 'default' : 'ghost'}
+                  variant={currentPage === id ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => handleNavigation(id)}
                   className={`flex items-center space-x-2 transition-all duration-200 hover:scale-105 ${
-                    state.currentPage === id 
+                    currentPage === id 
                       ? 'bg-primary text-primary-foreground shadow-md dark:shadow-lg' 
                       : 'hover:bg-accent/80 dark:hover:bg-accent/60 hover:text-accent-foreground'
                   }`}
@@ -70,11 +77,11 @@ export const Navigation: React.FC = () => {
               {navigationItems.map(({ id, icon: Icon }) => (
                 <Button
                   key={id}
-                  variant={state.currentPage === id ? 'default' : 'ghost'}
+                  variant={currentPage === id ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => handleNavigation(id)}
                   className={`transition-all duration-200 ${
-                    state.currentPage === id 
+                    currentPage === id 
                       ? 'bg-primary text-primary-foreground shadow-md dark:shadow-lg' 
                       : 'hover:bg-accent/80 dark:hover:bg-accent/60'
                   }`}

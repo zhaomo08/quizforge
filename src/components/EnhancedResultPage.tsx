@@ -21,10 +21,21 @@ import {
   Award,
   Zap,
   Eye,
-  Download
+  Download,
+  FileText,
+  FileJson
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { storage } from '@/utils/storage';
+import { reportGenerator } from '@/utils/reportGenerator';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
 import { KnowledgePointAnalyzer } from '@/utils/knowledgePointAnalyzer';
 
 interface KnowledgePoint {
@@ -247,25 +258,44 @@ export const EnhancedResultPage: React.FC = () => {
 
   const performance = getPerformanceLevel();
 
-  const exportResults = () => {
-    const data = {
-      score,
-      correctAnswers,
-      totalQuestions,
-      timeSpent,
-      category: state.selectedCategory,
-      completedAt: state.testResult?.completedAt,
-      knowledgeAnalysis,
-      wrongAnswers: wrongAnswers.length
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `test-result-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // 所见即所得 HTML 导出：克隆当前页面 DOM（移除脚本），打包成独立 HTML
+  const exportSnapshotHTML = async () => {
+    try {
+      // 生成最新报告数据并在克隆前确保需要的动态区块已渲染（此页面已展示即可）
+      const clone = document.documentElement.cloneNode(true) as HTMLElement;
+      // 移除脚本 / 预加载，只保留样式与结构
+      clone.querySelectorAll('script, link[rel="modulepreload"]').forEach(el => el.remove());
+      // 去掉可能的运行时注入 dev overlay
+      clone.querySelectorAll('#vite-dev-server, vite-error-overlay').forEach(el => el.remove());
+      // 设置标题
+      const headTitle = clone.querySelector('title');
+      if (headTitle) headTitle.textContent = '学习报告快照';
+      // 添加导出说明（仅快照文件中显示）
+      const marker = document.createElement('div');
+      marker.innerHTML = '<div style="margin:24px auto;max-width:960px;font:12px/1.4 system-ui,Arial,sans-serif;color:#64748b;text-align:center;">本文件为 QuizForge 结果页快照（静态），交互与登录功能已移除。可以使用浏览器打印为 PDF。</div>';
+      const bodyEl = clone.querySelector('body');
+      if (bodyEl) bodyEl.insertBefore(marker, bodyEl.firstChild);
+      const htmlString = '<!DOCTYPE html>' + new XMLSerializer().serializeToString(clone);
+      const blob = new Blob([htmlString], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `学习报告_${new Date().toISOString().split('T')[0]}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('导出 HTML 快照失败，回退到结构化 HTML:', e);
+      const report = reportGenerator.generateReport(30);
+      reportGenerator.downloadReport(report, 'html');
+    }
+  };
+
+  const handleExport = async (type: 'pdf' | 'html') => {
+    const report = reportGenerator.generateReport(30); // 默认30天窗口
+    if (type === 'pdf') return await reportGenerator.exportToPDF(report);
+    if (type === 'html') return exportSnapshotHTML();
   };
 
   return (
@@ -298,10 +328,24 @@ export const EnhancedResultPage: React.FC = () => {
               <Badge variant="outline" className={`${performance.color} text-lg px-4 py-2`}>
                 {performance.level}
               </Badge>
-              <Button variant="outline" size="sm" onClick={exportResults}>
-                <Download className="h-4 w-4 mr-2" />
-                导出报告
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-2" />
+                    导出报告
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuLabel>选择格式</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleExport('html')}>
+                    <FileText className="h-4 w-4 mr-2" /> 网页版 (推荐)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                    <FileText className="h-4 w-4 mr-2" /> PDF (实验性)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 

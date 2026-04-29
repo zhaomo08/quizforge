@@ -22,10 +22,10 @@ import {
   Zap,
   Eye,
   Download,
-  FileText,
-  FileJson
+  FileText
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { storage } from '@/utils/storage';
 import { reportGenerator } from '@/utils/reportGenerator';
 import {
@@ -53,60 +53,60 @@ interface LearningInsight {
 }
 
 export const EnhancedResultPage: React.FC = () => {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
+  const navigate = useNavigate();
   const [knowledgeAnalysis, setKnowledgeAnalysis] = useState<KnowledgePoint[]>([]);
   const [learningInsights, setLearningInsights] = useState<LearningInsight[]>([]);
-  const [historicalData, setHistoricalData] = useState<any[]>([]);
+  const [historicalData, setHistoricalData] = useState<import('@/types').TestResult[]>([]);
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
   const [animationStep, setAnimationStep] = useState(0);
-  
-  if (!state.testResult) {
-    return null;
-  }
 
-  const { correctAnswers, totalQuestions, score, timeSpent } = state.testResult;
-  
+  // 动画步骤 - 必须在条件 return 之前
   useEffect(() => {
-    // 动画步骤
+    if (!state.testResult) return;
     const timer1 = setTimeout(() => setAnimationStep(1), 300);
     const timer2 = setTimeout(() => setAnimationStep(2), 600);
     const timer3 = setTimeout(() => setAnimationStep(3), 900);
-    
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
     };
-  }, []);
+  }, [state.testResult]);
 
   useEffect(() => {
-    analyzeKnowledgePoints();
-    generateLearningInsights();
+    if (!state.testResult) {
+      navigate('/');
+      return;
+    }
+    const points = analyzeKnowledgePoints();
+    generateLearningInsights(points);
     loadHistoricalData();
   }, [state.testResult]);
 
-  const analyzeKnowledgePoints = () => {
-    if (!state.testResult) return;
-    
-    // 使用新的知识点分析器分析当前测试
-    
-    // 使用新的知识点分析器分析当前测试
+  // 条件 return 必须在所有 Hook 之后
+  if (!state.testResult) {
+    return null;
+  }
+
+  const { correctAnswers, totalQuestions, score, timeSpent } = state.testResult;
+
+  const analyzeKnowledgePoints = (): KnowledgePoint[] => {
+    if (!state.testResult) return [];
     const currentTestMap = KnowledgePointAnalyzer.analyzeTestKnowledgePoints(state.testResult);
-    
-    // 转换为显示格式
     const points: KnowledgePoint[] = Array.from(currentTestMap.entries()).map(([name, stats]) => ({
       name,
       correct: stats.correct,
       total: stats.total,
       percentage: Math.round((stats.correct / stats.total) * 100)
-    })).sort((a, b) => b.total - a.total); // 按题目数量排序
-    
+    })).sort((a, b) => b.total - a.total);
     setKnowledgeAnalysis(points);
+    return points;
   };
 
-  const generateLearningInsights = () => {
+  const generateLearningInsights = (currentKnowledgeAnalysis: KnowledgePoint[] = knowledgeAnalysis) => {
     const insights: LearningInsight[] = [];
-    
+
     // 获取历史数据进行更深入的分析
     const allResults = storage.getTestResults();
     const categoryResults = allResults.filter(r => r.category === state.testResult!.category);
@@ -150,8 +150,8 @@ export const EnhancedResultPage: React.FC = () => {
     }
     
     // 基于知识点分析的洞察
-    const weakPoints = knowledgeAnalysis.filter(point => point.percentage < 60);
-    const strongPoints = knowledgeAnalysis.filter(point => point.percentage >= 80);
+    const weakPoints = currentKnowledgeAnalysis.filter(point => point.percentage < 60);
+    const strongPoints = currentKnowledgeAnalysis.filter(point => point.percentage >= 80);
     
     if (strongPoints.length > 0) {
       insights.push({
@@ -406,10 +406,11 @@ export const EnhancedResultPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                  {historicalData.length > 1 ? 
-                    (score > historicalData[historicalData.length - 2]?.score ? '+' : '') +
-                    Math.round(score - (historicalData[historicalData.length - 2]?.score || score))
-                    : '新'
+                  {historicalData.length > 1 ? (() => {
+                    const prevScore = historicalData[historicalData.length - 2]?.score ?? score;
+                    const diff = Math.round(score - prevScore);
+                    return (diff > 0 ? '+' : '') + diff;
+                  })() : '新'
                   }
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -575,7 +576,7 @@ export const EnhancedResultPage: React.FC = () => {
                           {question.question}
                         </p>
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          <span className="text-red-600">你的答案:</span> {question.options[state.testResult!.userAnswers[state.testResult!.questions.indexOf(question)]]} <br />
+                          <span className="text-red-600">你的答案:</span> {(() => { const idx = state.testResult!.questions.indexOf(question); const ans = state.testResult!.userAnswers[idx]; return ans != null && ans >= 0 ? question.options[ans] : '未作答'; })()} <br />
                           <span className="text-green-600">正确答案:</span> {question.options[question.correctAnswer]}
                         </div>
                       </div>
@@ -604,7 +605,7 @@ export const EnhancedResultPage: React.FC = () => {
           {/* 操作按钮 */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
-              onClick={() => dispatch({ type: 'SET_PAGE', payload: 'category' })}
+              onClick={() => navigate('/category')}
               variant="outline"
               size="lg"
               className="flex-1 sm:flex-none"
@@ -615,7 +616,7 @@ export const EnhancedResultPage: React.FC = () => {
             
             {wrongAnswers.length > 0 && (
               <Button
-                onClick={() => dispatch({ type: 'SET_PAGE', payload: 'wrong-answers' })}
+                onClick={() => navigate('/wrong-answers')}
                 variant="outline"
                 size="lg"
                 className="flex-1 sm:flex-none"
@@ -626,7 +627,7 @@ export const EnhancedResultPage: React.FC = () => {
             )}
             
             <Button
-              onClick={() => dispatch({ type: 'SET_PAGE', payload: 'analytics' })}
+              onClick={() => navigate('/analytics')}
               variant="outline"
               size="lg"
               className="flex-1 sm:flex-none"
@@ -636,7 +637,7 @@ export const EnhancedResultPage: React.FC = () => {
             </Button>
             
             <Button
-              onClick={() => dispatch({ type: 'SET_PAGE', payload: 'home' })}
+              onClick={() => navigate('/')}
               size="lg"
               className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700"
             >

@@ -3,16 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
-import { 
-  ArrowLeft, 
-  Clock, 
+import {
+  ArrowLeft,
   Lightbulb,
-  Star,
   MessageSquare,
-  Pause,
-  Play,
-  Heart
+  Heart,
+  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { TestResult } from '@/types';
@@ -35,68 +31,45 @@ interface QuestionStats {
 
 export const EnhancedTestPage: React.FC = () => {
   const { state, dispatch } = useApp();
+  // ── 状态声明 ──────────────────────────────────────────
+  const navigate = useNavigate();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
-  // 已移除答案展示阶段，直接跳题；保留占位不再使用
-  // const [showAnswer, setShowAnswer] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [startTime] = useState(Date.now());
-  const [questionStartTime, setQuestionStartTime] = useState(Date.now());
-  const navigate = useNavigate();
-  
-  // 新增状态 - 答题体验优化
-  const [isPaused, setIsPaused] = useState(false);
+
+  // 功能状态
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hintLevel, setHintLevel] = useState(0);
   const [favoriteQuestions, setFavoriteQuestions] = useState<Set<string>>(new Set());
   const [questionNotes, setQuestionNotes] = useState<QuestionNote[]>([]);
   const [currentNote, setCurrentNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
-  const [confidence, setConfidence] = useState<number>(0);
-  // 未来可能添加“显示解析”开关，暂时移除避免未使用告警
-  // const [showExplanation] = useState(true);
   const [questionStats, setQuestionStats] = useState<QuestionStats[]>([]);
-  
-  // 动画和视觉效果
+
+  // 动画状态
   const [answerAnimation, setAnswerAnimation] = useState('');
   const [progressAnimation, setProgressAnimation] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // 检查是否有当前测试
-  if (!state.currentTest) {
-    dispatch({ type: 'SET_PAGE', payload: 'home' });
-    return null;
-  }
-
-  const currentQuestion = state.currentTest.questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / state.currentTest.questions.length) * 100;
-  if (!currentQuestion) {
-    // 理论上不会出现（因为有 currentTest），防御空引用
-    return null;
-  }
-  const questionId = `${currentQuestion.question}_${currentQuestionIndex}`;
+  // ── 所有 useEffect 必须在条件 return 之前 ──────────────
+  // 无活动测试时重定向
+  useEffect(() => {
+    if (!state.currentTest) {
+      navigate('/');
+    }
+  }, [state.currentTest, navigate]);
 
   // 加载用户数据
   useEffect(() => {
     const savedFavorites = storage.getFavoriteQuestions();
     const savedNotes = storage.getQuestionNotes();
     const savedStats = storage.getQuestionStats();
-    
     setFavoriteQuestions(new Set(savedFavorites));
     setQuestionNotes(savedNotes);
     setQuestionStats(savedStats);
   }, []);
-
-  // 倒计时逻辑
-  useEffect(() => {
-    if (timeLeft > 0 && !isPaused) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0) {
-  handleAnswer(''); // 超时自动提交
-    }
-  }, [timeLeft, isPaused]);
 
   // 进度动画
   useEffect(() => {
@@ -105,22 +78,29 @@ export const EnhancedTestPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [currentQuestionIndex]);
 
+  // ── 条件 return 必须在所有 Hook 之后 ──────────────────
+  if (!state.currentTest) return null;
+
+  const currentQuestion = state.currentTest.questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / state.currentTest.questions.length) * 100;
+  if (!currentQuestion) return null;
+
+  const questionId = currentQuestion.id;
+  const currentQuestionNote = questionNotes.find(n => n.questionId === questionId);
+
   const handleAnswer = (answer: string) => {
-    // 立即记分 + 跳转，不展示解析界面
-    const questionTime = Date.now() - questionStartTime;
-    setSelectedAnswer(answer);
-    setAnswers(prev => ({ ...prev, [currentQuestionIndex]: answer }));
-    updateQuestionStats(questionId, answer, questionTime);
-  const isCorrect = answer ? answer.charCodeAt(0) - 65 === currentQuestion.correctAnswer : false;
+    const newAnswers = { ...answers, [currentQuestionIndex]: answer };
+    setAnswers(newAnswers);
+
+    const isCorrect = answer ? answer.charCodeAt(0) - 65 === currentQuestion.correctAnswer : false;
+    const answerIndex = answer ? answer.charCodeAt(0) - 65 : -1;
+    dispatch({ type: 'ANSWER_QUESTION', payload: answerIndex });
+
     setAnswerAnimation(isCorrect ? 'correct' : 'incorrect');
     if (navigator.vibrate && !isCorrect) navigator.vibrate([60]);
     setTimeout(() => setAnswerAnimation(''), 600);
-    handleNext();
-  };
 
-  const updateQuestionStats = (questionId: string, answer: string, time: number) => {
-  const isCorrect = answer ? answer.charCodeAt(0) - 65 === currentQuestion.correctAnswer : false;
-    
+    // 更新答题统计
     setQuestionStats(prev => {
       const existing = prev.find(s => s.questionId === questionId);
       if (existing) {
@@ -128,47 +108,32 @@ export const EnhancedTestPage: React.FC = () => {
           ...s,
           attempts: s.attempts + 1,
           correctCount: s.correctCount + (isCorrect ? 1 : 0),
-          averageTime: (s.averageTime * s.attempts + time) / (s.attempts + 1)
+          averageTime: 0,
         } : s);
-      } else {
-        return [...prev, {
-          questionId,
-          attempts: 1,
-          correctCount: isCorrect ? 1 : 0,
-          averageTime: time,
-          difficulty: 'medium' // 默认难度
-        }];
       }
+      return [...prev, { questionId, attempts: 1, correctCount: isCorrect ? 1 : 0, averageTime: 0, difficulty: 'medium' as const }];
     });
+
+    handleNext(newAnswers);
   };
 
-  const handleNext = () => {
-    // 保存当前题目的笔记
-    if (currentNote.trim()) {
-      saveQuestionNote();
-    }
-    
+  const handleNext = (currentAnswers?: Record<number, string>) => {
+    if (currentNote.trim()) saveQuestionNote();
+
     if (currentQuestionIndex < state.currentTest!.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setCurrentQuestionIndex(prev => prev + 1);
       setSelectedAnswer('');
-      setTimeLeft(60);
-      setQuestionStartTime(Date.now());
       setShowHint(false);
       setHintLevel(0);
       setCurrentNote('');
       setShowNoteInput(false);
-      setConfidence(0);
-      
-      // 滚动到顶部
-      if (cardRef.current) {
-        cardRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
+      if (cardRef.current) cardRef.current.scrollIntoView({ behavior: 'smooth' });
     } else {
-      finishTest();
+      finishTest(currentAnswers || answers);
     }
   };
 
-  const finishTest = () => {
+  const finishTest = (finalAnswers: Record<number, string>) => {
     if (!state.currentTest) return;
     
     // 保存所有数据
@@ -179,7 +144,7 @@ export const EnhancedTestPage: React.FC = () => {
     // 转换答案格式
     const userAnswers: number[] = [];
     state.currentTest.questions.forEach((_, index) => {
-      const userAnswer = answers[index] || '';
+      const userAnswer = finalAnswers[index] || '';
       if (userAnswer) {
         userAnswers[index] = userAnswer.charCodeAt(0) - 65;
       } else {
@@ -244,108 +209,93 @@ export const EnhancedTestPage: React.FC = () => {
     setShowNoteInput(false);
   };
 
+  const HINTS = [
+    "仔细阅读题目，注意关键词",
+    "排除明显错误的选项",
+    "考虑题目涉及的核心概念",
+    `正确答案在选项 ${String.fromCharCode(65 + currentQuestion.correctAnswer)} 中`,
+  ];
+
   const getHint = () => {
-    const hints = [
-      "仔细阅读题目，注意关键词",
-      "排除明显错误的选项",
-      "考虑题目涉及的核心概念",
-  `正确答案在选项 ${String.fromCharCode(65 + currentQuestion.correctAnswer)} 中`
-    ];
-    
-    if (hintLevel < hints.length - 1) {
+    if (hintLevel < HINTS.length - 1) {
       setHintLevel(hintLevel + 1);
       setShowHint(true);
     }
   };
 
-  const togglePause = () => {
-    setIsPaused(!isPaused);
-  };
-
-  // 获取时间颜色
-  const getTimeColor = () => {
-    if (timeLeft > 30) return 'text-green-600';
-    if (timeLeft > 10) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  // 获取进度颜色
   const getProgressColor = () => {
     if (progress < 30) return 'bg-blue-500';
     if (progress < 70) return 'bg-yellow-500';
     return 'bg-green-500';
   };
 
-  // const selectedAnswerIndex = selectedAnswer ? selectedAnswer.charCodeAt(0) - 65 : -1; // 后续可用于展示选择统计
-  // const isCorrect = selectedAnswerIndex === currentQuestion.correctAnswer; // 未使用
-  const currentQuestionNote = questionNotes.find(n => n.questionId === questionId);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      {/* 退出确认弹窗 */}
+      {showExitDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">确认退出测试？</h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              退出后当前答题进度将丢失，已答 {Object.keys(answers).length} 题 / 共 {state.currentTest.questions.length} 题。
+            </p>
+            <div className="flex space-x-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowExitDialog(false)}>
+                继续答题
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => { dispatch({ type: 'RESET_TEST' }); navigate('/'); }}
+              >
+                确认退出
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="page-container layout-stable">
         <div className="max-w-4xl mx-auto">
-          {/* 增强的头部 */}
+          {/* 头部 */}
           <div className="flex items-center justify-between mb-6 bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
             <Button
               variant="ghost"
-              onClick={() => dispatch({ type: 'SET_PAGE', payload: 'home' })}
+              onClick={() => setShowExitDialog(true)}
               className="hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               退出测试
             </Button>
-            
-            <div className="flex items-center space-x-4">
-              {/* 暂停/继续按钮 */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={togglePause}
-                className="flex items-center"
-              >
-                {isPaused ? <Play className="h-3 w-3 mr-1" /> : <Pause className="h-3 w-3 mr-1" />}
-                {isPaused ? '继续' : '暂停'}
-              </Button>
-              
-              {/* 时间显示 */}
-              <Badge variant="outline" className={`flex items-center ${getTimeColor()}`}>
-                <Clock className="h-3 w-3 mr-1" />
-                {isPaused ? '已暂停' : `${timeLeft}s`}
-              </Badge>
-              
-              {/* 进度显示 */}
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                {currentQuestionIndex + 1} / {state.currentTest.questions.length}
-              </span>
-            </div>
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              {currentQuestionIndex + 1} / {state.currentTest.questions.length}
+            </span>
           </div>
 
-          {/* 增强的进度条 */}
+          {/* 进度条 */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                答题进度
-              </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {Math.round(progress)}%
-              </span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">答题进度</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{Math.round(progress)}%</span>
             </div>
             <div className="relative">
-              <Progress 
-                value={progress} 
+              <Progress
+                value={progress}
                 className={`h-3 transition-all duration-500 ${progressAnimation ? 'animate-pulse' : ''}`}
               />
-              <div 
+              <div
                 className={`absolute top-0 left-0 h-3 rounded-full transition-all duration-500 ${getProgressColor()}`}
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
 
-          {/* 主要答题卡片 */}
-          <Card 
+          {/* 答题卡片 */}
+          <Card
             ref={cardRef}
-            className={`mb-6 transition-all duration-300 ${answerAnimation === 'correct' ? 'ring-2 ring-green-500 bg-green-50' : answerAnimation === 'incorrect' ? 'ring-2 ring-red-500 bg-red-50' : ''}`}
+            className={`mb-6 transition-all duration-300 ${answerAnimation === 'correct' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-950' : answerAnimation === 'incorrect' ? 'ring-2 ring-red-500 bg-red-50 dark:bg-red-950' : ''}`}
           >
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -405,9 +355,7 @@ export const EnhancedTestPage: React.FC = () => {
                         提示 {hintLevel}:
                       </p>
                       <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                        {hintLevel === 1 && "仔细阅读题目，注意关键词"}
-                        {hintLevel === 2 && "排除明显错误的选项"}
-                        {hintLevel === 3 && "考虑题目涉及的核心概念"}
+                        {HINTS[hintLevel - 1]}
                       </p>
                     </div>
                   </div>
@@ -471,8 +419,7 @@ export const EnhancedTestPage: React.FC = () => {
                   return (
                     <button
                       key={index}
-                      onClick={() => !isPaused && handleAnswer(optionLetter)}
-                      disabled={isPaused}
+                      onClick={() => handleAnswer(optionLetter)}
                       className={buttonClass}
                     >
                       <div className="flex items-center">
@@ -488,29 +435,6 @@ export const EnhancedTestPage: React.FC = () => {
               </div>
 
               {/* 信心度选择 */}
-              {selectedAnswer && (
-                <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    你对这个答案的信心程度:
-                  </p>
-                  <div className="flex space-x-2">
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() => setConfidence(level)}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${
-                          confidence >= level 
-                            ? 'bg-blue-500 border-blue-500 text-white' 
-                            : 'border-gray-300 hover:border-blue-300'
-                        }`}
-                      >
-                        <Star className={`h-4 w-4 mx-auto ${confidence >= level ? 'fill-current' : ''}`} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* 答案解析 */}
               {/* 立即跳转模式：不显示答案解析区 */}
             </CardContent>

@@ -7,7 +7,7 @@ export const testUtils = {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
     }
     return shuffled;
   },
@@ -36,7 +36,7 @@ export const testUtils = {
 
     const score = Math.round((correctAnswers / questions.length) * 100);
 
-    return {
+    const result: TestResult = {
       id: `test_${Date.now()}`,
       category,
       totalQuestions: questions.length,
@@ -45,8 +45,9 @@ export const testUtils = {
       questions,
       userAnswers,
       completedAt: new Date().toISOString(),
-      timeSpent,
     };
+    if (timeSpent !== undefined) result.timeSpent = timeSpent;
+    return result;
   },
 
   // Save wrong answers
@@ -56,7 +57,7 @@ export const testUtils = {
         const wrongAnswer: WrongAnswer = {
           questionId: question.id,
           question,
-          userAnswer: testResult.userAnswers[index],
+          userAnswer: testResult.userAnswers[index] ?? -1,
           wrongAt: testResult.completedAt,
         };
         storage.addWrongAnswer(wrongAnswer);
@@ -122,7 +123,12 @@ export const testUtils = {
       testResults.reduce((sum, result) => sum + result.score, 0) / totalTests : 0;
 
     // Category stats
-    const categoryStats: Record<string, any> = {};
+    const categoryStats: Record<string, {
+      totalTests: number;
+      totalQuestions: number;
+      correctAnswers: number;
+      averageScore: number;
+    }> = {};
     testResults.forEach(result => {
       if (!categoryStats[result.category]) {
         categoryStats[result.category] = {
@@ -133,15 +139,16 @@ export const testUtils = {
         };
       }
       
-      categoryStats[result.category].totalTests += 1;
-      categoryStats[result.category].totalQuestions += result.totalQuestions;
-      categoryStats[result.category].correctAnswers += result.correctAnswers;
+      const entry = categoryStats[result.category]!;
+      entry.totalTests += 1;
+      entry.totalQuestions += result.totalQuestions;
+      entry.correctAnswers += result.correctAnswers;
     });
 
     // Calculate average scores for categories
     Object.keys(categoryStats).forEach(category => {
       const categoryResults = testResults.filter(r => r.category === category);
-      categoryStats[category].averageScore = 
+      categoryStats[category]!.averageScore = 
         categoryResults.reduce((sum, result) => sum + result.score, 0) / categoryResults.length;
     });
 

@@ -2,13 +2,13 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Brain, Target, BookOpen, BarChart3, Zap, Award, TrendingUp } from 'lucide-react';
-import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { testUtils } from '@/utils/testUtils';
 import { LearningInsights } from '@/components/LearningInsights';
 import { notificationSystem } from '@/utils/notificationSystem';
 
 export const HomePage: React.FC = () => {
-  const { dispatch } = useApp();
+  const navigate = useNavigate();
 
   const stats = testUtils.getUserStats();
 
@@ -91,35 +91,35 @@ export const HomePage: React.FC = () => {
       description: '选择类别，开始你的面试练习',
       icon: Zap,
       color: 'bg-blue-600 hover:bg-blue-700',
-      action: () => dispatch({ type: 'SET_PAGE', payload: 'category' }),
+      action: () => navigate('/category'),
     },
     {
       title: '智能学习助手',
       description: '获得个性化学习建议和分析',
       icon: Brain,
       color: 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700',
-      action: () => dispatch({ type: 'SET_PAGE', payload: 'learning-assistant' }),
+      action: () => navigate('/learning-assistant'),
     },
     {
       title: '学习分析',
       description: '查看详细的学习数据和进度',
       icon: BarChart3,
       color: 'bg-purple-600 hover:bg-purple-700',
-      action: () => dispatch({ type: 'SET_PAGE', payload: 'analytics' }),
+      action: () => navigate('/analytics'),
     },
     {
       title: 'AI出题',
       description: '使用AI生成新的面试题目',
       icon: Target,
       color: 'bg-green-600 hover:bg-green-700',
-      action: () => dispatch({ type: 'SET_PAGE', payload: 'generate' }),
+      action: () => navigate('/generate'),
     },
     {
       title: '错题本',
       description: '复习你做错的题目',
       icon: BookOpen,
       color: 'bg-orange-600 hover:bg-orange-700',
-      action: () => dispatch({ type: 'SET_PAGE', payload: 'wrong-answers' }),
+      action: () => navigate('/wrong-answers'),
     },
   ];
 
@@ -193,7 +193,9 @@ export const HomePage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">
-                    {Math.round((stats.correctAnswers / stats.totalQuestions) * 100)}%
+                    {stats.totalQuestions > 0
+                      ? Math.round((stats.correctAnswers / stats.totalQuestions) * 100)
+                      : 0}%
                   </p>
                   <p className="text-gray-600">正确率</p>
                 </div>
@@ -228,7 +230,7 @@ export const HomePage: React.FC = () => {
       {/* Learning Insights */}
       {stats.totalTests > 0 && (
         <div className="mb-12 animate-slide-up" style={{animationDelay: '0.3s'}}>
-          <LearningInsights onNavigate={(page) => dispatch({ type: 'SET_PAGE', payload: page })} />
+          <LearningInsights onNavigate={(page) => navigate(`/${page}`)} />
         </div>
       )}
 
@@ -249,7 +251,7 @@ export const HomePage: React.FC = () => {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => dispatch({ type: 'SET_PAGE', payload: 'analytics' })}
+                onClick={() => navigate('/analytics')}
               >
                 查看详细分析
               </Button>
@@ -268,7 +270,9 @@ export const HomePage: React.FC = () => {
               
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600 mb-1">
-                  {Math.round((stats.correctAnswers / stats.totalQuestions) * 100)}%
+                  {stats.totalQuestions > 0
+                    ? Math.round((stats.correctAnswers / stats.totalQuestions) * 100)
+                    : 0}%
                 </div>
                 <p className="text-sm text-gray-600 dark:text-muted-foreground">
                   总体正确率

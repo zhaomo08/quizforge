@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
+import {
   Brain,
   Target,
   TrendingUp,
@@ -18,13 +18,13 @@ import {
   BarChart3,
   Calendar,
   Zap,
-  Users,
   Trophy,
   Flame,
   Plus
 } from 'lucide-react';
 import { LearningAnalytics, LearningPattern, StudyRecommendation, LearningGoal } from '@/utils/learningAnalytics';
 import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 
 interface MotivationalMessage {
   type: 'encouragement' | 'challenge' | 'celebration' | 'guidance';
@@ -34,7 +34,8 @@ interface MotivationalMessage {
 }
 
 export const SmartLearningAssistant: React.FC = () => {
-  const { state, dispatch } = useApp();
+  const { dispatch } = useApp();
+  const navigate = useNavigate();
   const [learningPattern, setLearningPattern] = useState<LearningPattern | null>(null);
   const [recommendations, setRecommendations] = useState<StudyRecommendation[]>([]);
   const [learningGoals, setLearningGoals] = useState<LearningGoal[]>([]);
@@ -108,7 +109,7 @@ export const SmartLearningAssistant: React.FC = () => {
       messages.push({
         type: 'challenge',
         title: '挑战更高难度',
-        message: `你在${getCategoryName(pattern.strongAreas[0])}方面表现优秀，可以尝试更有挑战性的内容！`,
+        message: `你在${getCategoryName(pattern.strongAreas[0] ?? '')}方面表现优秀，可以尝试更有挑战性的内容！`,
         icon: <Trophy className="h-5 w-5 text-yellow-500" />
       });
     }
@@ -134,7 +135,7 @@ export const SmartLearningAssistant: React.FC = () => {
       });
     }
 
-    setMotivationalMessage(messages[Math.floor(Math.random() * messages.length)]);
+    setMotivationalMessage(messages[Math.floor(Math.random() * messages.length)] ?? null);
   };
 
   const getCategoryName = (categoryId: string): string => {
@@ -154,7 +155,7 @@ export const SmartLearningAssistant: React.FC = () => {
     if (recommendation.category) {
       // 跳转到对应类别的测试
       dispatch({ type: 'SET_CATEGORY', payload: recommendation.category });
-      dispatch({ type: 'SET_PAGE', payload: 'test-setup' });
+      navigate('/test-setup');
     } else if (recommendation.type === 'rest') {
       // 显示休息建议
       dispatch({ 
@@ -469,7 +470,7 @@ export const SmartLearningAssistant: React.FC = () => {
               variant="outline" 
               className="h-auto p-4 flex flex-col items-center space-y-2"
               onClick={() => {
-                dispatch({ type: 'SET_PAGE', payload: 'category' });
+                navigate('/category');
               }}
             >
               <Target className="h-6 w-6 text-blue-500" />
@@ -481,7 +482,7 @@ export const SmartLearningAssistant: React.FC = () => {
               variant="outline" 
               className="h-auto p-4 flex flex-col items-center space-y-2"
               onClick={() => {
-                dispatch({ type: 'SET_PAGE', payload: 'wrong-answers' });
+                navigate('/wrong-answers');
               }}
             >
               <BookOpen className="h-6 w-6 text-orange-500" />
@@ -493,7 +494,7 @@ export const SmartLearningAssistant: React.FC = () => {
               variant="outline" 
               className="h-auto p-4 flex flex-col items-center space-y-2"
               onClick={() => {
-                dispatch({ type: 'SET_PAGE', payload: 'analytics' });
+                navigate('/analytics');
               }}
             >
               <BarChart3 className="h-6 w-6 text-green-500" />
@@ -505,7 +506,7 @@ export const SmartLearningAssistant: React.FC = () => {
               variant="outline" 
               className="h-auto p-4 flex flex-col items-center space-y-2"
               onClick={() => {
-                dispatch({ type: 'SET_PAGE', payload: 'generate' });
+                navigate('/generate');
               }}
             >
               <Brain className="h-6 w-6 text-purple-500" />

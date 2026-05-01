@@ -4,14 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Target, 
-  Calendar, 
-  Trophy, 
-  Plus, 
-  Check, 
-  X,
-  Edit,
+import {
+  Target,
+  Calendar,
+  Trophy,
+  Plus,
   Save,
   Trash2
 } from 'lucide-react';
@@ -35,7 +32,6 @@ const GOAL_STORAGE_KEY = 'learning_goals';
 export const LearningGoals: React.FC = () => {
   const [goals, setGoals] = useState<LearningGoal[]>([]);
   const [isAddingGoal, setIsAddingGoal] = useState(false);
-  const [editingGoal, setEditingGoal] = useState<string | null>(null);
   const [newGoal, setNewGoal] = useState({
     title: '',
     description: '',
@@ -82,17 +78,17 @@ export const LearningGoals: React.FC = () => {
         let streak = 0;
         if (sortedResults.length > 0) {
           const today = new Date();
-          const lastTestDate = new Date(sortedResults[0].completedAt);
+          const lastTestDate = new Date(sortedResults[0]!.completedAt);
           const daysSinceLastTest = Math.floor(
             (today.getTime() - lastTestDate.getTime()) / (1000 * 60 * 60 * 24)
           );
-          
+
           if (daysSinceLastTest <= 1) {
             streak = 1;
             let currentDate = new Date(lastTestDate);
-            
+
             for (let i = 1; i < sortedResults.length; i++) {
-              const testDate = new Date(sortedResults[i].completedAt);
+              const testDate = new Date(sortedResults[i]!.completedAt);
               const daysDiff = Math.floor(
                 (currentDate.getTime() - testDate.getTime()) / (1000 * 60 * 60 * 24)
               );
@@ -125,10 +121,10 @@ export const LearningGoals: React.FC = () => {
       type: newGoal.type,
       target: newGoal.target,
       current: calculateCurrentProgress({ ...newGoal } as LearningGoal),
-      deadline: newGoal.deadline || undefined,
       completed: false,
       createdAt: new Date().toISOString()
     };
+    if (newGoal.deadline) goal.deadline = newGoal.deadline;
 
     const updatedGoals = [...goals, goal];
     saveGoals(updatedGoals);

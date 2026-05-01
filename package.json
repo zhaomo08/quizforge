@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:redis": "node test-redis.js",
+    "verify": "node verify-setup.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -48,6 +50,7 @@
     "embla-carousel-react": "^8.3.0",
     "express": "^5.1.0",
     "input-otp": "^1.2.4",
+    "ioredis": "^5.10.1",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
     "lucide-react": "^0.446.0",

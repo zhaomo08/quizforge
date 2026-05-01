@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Sparkles,
   Eye,
-  EyeOff,
   X,
   Check,
   Menu,
@@ -25,6 +24,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { apiKeyUtils } from '@/utils/apiKeyUtils';
 import { AIService } from '@/utils/aiService';
@@ -39,10 +39,14 @@ import { BackButton } from '@/components/BackButton';
 
 export const GeneratePage: React.FC = () => {
   const { state, dispatch } = useApp();
+  const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const { isMobile, isTouchDevice } = useMobile();
   
-  // 简化 API Key 逻辑，不再在生成页面显示 API Key 设置
+  // 用户的付费 API Keys（非内置）
+  const userPaidKeys = isAuthenticated && user
+    ? apiKeyUtils.getUserApiKeys(user.id).filter(k => !k.isBuiltIn)
+    : [];
   const userApiKey = isAuthenticated && user ? apiKeyUtils.getDefaultApiKey(user.id) : null;
   
   const [selectedCategory, setSelectedCategory] = useState('java');
@@ -70,6 +74,7 @@ export const GeneratePage: React.FC = () => {
     info: false
   });
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null); // null = 使用免费模型
   const modelPickerRef = React.useRef<HTMLDivElement | null>(null);
 
   // 点击外部关闭模型选择器
@@ -132,7 +137,7 @@ export const GeneratePage: React.FC = () => {
   // 移除 API Key 保存逻辑，现在统一在 API Key 管理页面处理
 
   const navigateToApiKeyManager = () => {
-    dispatch({ type: 'SET_PAGE', payload: 'api-keys' });
+    navigate('/api-keys');
   };
 
   const handleGenerate = async () => {
@@ -150,7 +155,7 @@ export const GeneratePage: React.FC = () => {
     dispatch({ type: 'CLEAR_ERROR' });
 
     const startTime = Date.now();
-    const modelInfo = AIService.getCurrentModelInfo();
+    let modelInfo = AIService.getCurrentModelInfo(); // 初始值，生成后会更新为实际模型
 
     try {
       setCurrentStep('正在生成题目...');
@@ -160,10 +165,13 @@ export const GeneratePage: React.FC = () => {
         category: selectedCategory,
         count: parseInt(questionCount),
         difficulty,
-  // 不再传递 strategy，AIService 内部自行决定
-        userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
+        userId: user?.id,
+        keyId: selectedKeyId ?? undefined,
       });
-      
+
+      // 生成完成后更新为实际使用的模型
+      modelInfo = AIService.getCurrentModelInfo();
+
       // 如果用户已登录，更新API Key的最后使用时间
       if (isAuthenticated && user && userApiKey) {
         apiKeyUtils.updateLastUsed(user.id, userApiKey.id);
@@ -178,7 +186,7 @@ export const GeneratePage: React.FC = () => {
 
       // 重复检测
       const duplicateResult = GenerationAnalytics.detectDuplicates(questions);
-      
+
       setCurrentStep('保存题目到本地...');
       setGenerationProgress(80);
 
@@ -197,10 +205,10 @@ export const GeneratePage: React.FC = () => {
         qualityScore: averageQuality,
         duplicateCount: duplicateResult.duplicateCount
       });
-      
+
       setGenerationProgress(100);
       setCurrentStep('生成完成！');
-      
+
       // 设置分析结果
       setQualityAnalysis({
         averageQuality,
@@ -208,10 +216,10 @@ export const GeneratePage: React.FC = () => {
         questions
       });
       setDuplicateDetection(duplicateResult);
-      
-      dispatch({ 
-        type: 'SET_ERROR', 
-        payload: `🎉 成功生成 ${questions.length} 道 ${categories.find(c => c.id === selectedCategory)?.name} 题目！平均质量: ${Math.round(averageQuality)}% | 使用模型: ${modelInfo.name}` 
+
+      dispatch({
+        type: 'SET_ERROR',
+        payload: `🎉 成功生成 ${questions.length} 道 ${categories.find(c => c.id === selectedCategory)?.name} 题目！平均质量: ${Math.round(averageQuality)}% | 使用模型: ${modelInfo.name}`
       });
       
       // Clear success message after 8 seconds
@@ -260,8 +268,8 @@ export const GeneratePage: React.FC = () => {
         category: selectedCategory,
         count: previewCount,
         difficulty,
-  // 不再传递 strategy，AIService 内部自行决定
-        userId: user?.id, // 传递用户ID，让 AIService 自动选择合适的 API Key
+        userId: user?.id,
+        keyId: selectedKeyId ?? undefined,
       });
       
       // 如果用户已登录，更新API Key的最后使用时间
@@ -385,17 +393,18 @@ export const GeneratePage: React.FC = () => {
         setCurrentStep(`正在生成第 ${i + 1}/${batchItems.length} 个任务: ${categories.find(c => c.id === item.category)?.name}`);
         
         const startTime = Date.now();
-        const modelInfo = AIService.getCurrentModelInfo();
-
         item.progress = 30;
-        
+
         const questions = await AIService.generateQuestions({
           category: item.category,
           count: item.count,
           difficulty: item.difficulty,
-          // strategy 已移除，AIService 内部自适应
           userId: user?.id,
+          keyId: selectedKeyId ?? undefined,
         });
+
+        // 生成完成后读取实际使用的模型
+        const modelInfo = AIService.getCurrentModelInfo();
         
         // 如果用户已登录，更新API Key的最后使用时间
         if (isAuthenticated && user && userApiKey) {
@@ -595,53 +604,83 @@ export const GeneratePage: React.FC = () => {
                   <span className="text-green-800 dark:text-green-200">已登录，可使用免费AI模型</span>
                   {modelHealth && (
                     <div className="relative" ref={modelPickerRef}>
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant={selectedKeyId ? 'default' : 'secondary'}
                         role="button"
                         tabIndex={0}
                         aria-haspopup="listbox"
                         aria-expanded={showModelPicker}
-                        className={`${isMobile ? 'text-xs' : ''} cursor-pointer select-none flex items-center gap-1 hover:ring-2 hover:ring-primary/30 hover:bg-secondary/80 transition`}
+                        className={`${isMobile ? 'text-xs' : ''} cursor-pointer select-none flex items-center gap-1 hover:ring-2 hover:ring-primary/30 transition`}
                         onClick={() => setShowModelPicker((v) => !v)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setShowModelPicker((v) => !v);
-                          } else if (e.key === 'Escape') {
-                            setShowModelPicker(false);
-                          }
+                          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowModelPicker((v) => !v); }
+                          else if (e.key === 'Escape') setShowModelPicker(false);
                         }}
-                        title="点击切换免费模型"
+                        title="点击切换模型"
                       >
-                        {modelHealth.currentModel.name}
+                        {selectedKeyId
+                          ? (() => {
+                              const k = userPaidKeys.find(k => k.id === selectedKeyId);
+                              return k ? `${k.name}${k.model ? ` · ${k.model}` : ''}` : '付费模型';
+                            })()
+                          : 'openrouter/free'}
                         <ChevronDown className="h-3.5 w-3.5 opacity-70" />
                       </Badge>
                       {showModelPicker && (
-                        <div className="absolute right-0 z-20 mt-2 w-64 bg-popover border rounded-md shadow-md p-2">
-                          <div className="text-xs text-muted-foreground px-2 pb-1">选择免费模型</div>
-                          <div className="max-h-64 overflow-y-auto" role="listbox">
-                            {AIService.getAllModels().map((m) => {
-                              const active = m.id === modelHealth.currentModel.model;
+                        <div className="absolute left-0 z-20 mt-2 w-72 bg-popover border rounded-md shadow-md p-2">
+                          {/* 免费模型区 */}
+                          <div className="text-xs text-muted-foreground px-2 pb-1 font-medium">免费模型</div>
+                          <div role="listbox">
+                            {(() => {
+                              const active = !selectedKeyId;
                               return (
                                 <button
-                                  key={m.id}
                                   role="option"
                                   aria-selected={active}
-                                  className={`w-full flex items-center justify-between text-left px-2 py-1.5 rounded hover:bg-accent hover:text-accent-foreground ${active ? 'bg-accent/70' : ''}`}
+                                  className={`w-full flex items-start justify-between text-left px-2 py-1.5 rounded hover:bg-accent hover:text-accent-foreground ${active ? 'bg-accent/70' : ''}`}
                                   onClick={() => {
-                                    const ok = AIService.switchToModel(m.id);
-                                    if (ok) {
-                                      setShowModelPicker(false);
-                                      updateModelHealth();
-                                    }
+                                    setSelectedKeyId(null);
+                                    setShowModelPicker(false);
+                                    updateModelHealth();
                                   }}
                                 >
-                                  <span className="truncate">{m.name}</span>
-                                  {active && <Check className="h-4 w-4 opacity-80" />}
+                                  <div className="min-w-0">
+                                    <div className="text-sm">Free Models Router</div>
+                                    <div className="text-xs text-muted-foreground font-mono">openrouter/free</div>
+                                  </div>
+                                  {active && <Check className="h-4 w-4 opacity-80 flex-shrink-0 mt-0.5" />}
                                 </button>
                               );
-                            })}
+                            })()}
                           </div>
+                          {/* 付费 key 区 */}
+                          {userPaidKeys.length > 0 && (
+                            <>
+                              <div className="border-t my-1" />
+                              <div className="text-xs text-muted-foreground px-2 pb-1 font-medium">我的 API Keys（付费）</div>
+                              {userPaidKeys.map((k) => {
+                                const active = selectedKeyId === k.id;
+                                return (
+                                  <button
+                                    key={k.id}
+                                    role="option"
+                                    aria-selected={active}
+                                    className={`w-full flex items-start justify-between text-left px-2 py-1.5 rounded hover:bg-accent hover:text-accent-foreground ${active ? 'bg-accent/70' : ''}`}
+                                    onClick={() => {
+                                      setSelectedKeyId(k.id);
+                                      setShowModelPicker(false);
+                                    }}
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="text-sm truncate">{k.name}</div>
+                                      <div className="text-xs text-muted-foreground">{k.model || k.provider}</div>
+                                    </div>
+                                    {active && <Check className="h-4 w-4 opacity-80 flex-shrink-0 mt-0.5" />}
+                                  </button>
+                                );
+                              })}
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

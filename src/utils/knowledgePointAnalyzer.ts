@@ -196,7 +196,7 @@ export class KnowledgePointAnalyzer {
         accuracy: Math.round(accuracy),
         averageTime: Math.round(averageTime),
         difficulty,
-        lastAttempt: stats.attempts.length > 0 ? stats.attempts[stats.attempts.length - 1].date : '',
+        lastAttempt: stats.attempts.length > 0 ? stats.attempts[stats.attempts.length - 1]!.date : '',
         trend
       };
     }).sort((a, b) => b.totalAttempts - a.totalAttempts);

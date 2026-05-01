@@ -1,180 +1,165 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Key, 
-  Eye, 
-  EyeOff, 
-  Save, 
-  Trash2, 
-  Plus, 
-  CheckCircle, 
+import { Badge } from '@/components/ui/badge';
+import {
+  Key,
+  Eye,
+  EyeOff,
+  Trash2,
+  Plus,
+  CheckCircle,
   AlertCircle,
-  Settings,
-  Zap,
-  Star
+  Star,
+  Shield,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { apiKeyUtils, type ApiKey } from '@/utils/apiKeyUtils';
-import { Badge } from '@/components/ui/badge';
+import { type ApiKey } from '@/utils/apiKeyUtils';
+import { syncToServer } from '@/utils/storage';
+import { BackButton } from '@/components/BackButton';
+
+// openrouter/free 路由器，自动选择可用的免费模型
+const FREE_MODEL_ID = 'openrouter/free';
+
+const PROVIDERS = [
+  {
+    id: 'custom' as const,
+    name: 'OpenRouter（自定义）',
+    color: 'text-violet-600',
+    bg: 'bg-violet-50 dark:bg-violet-950',
+    placeholder: 'sk-or-v1-...',
+    modelPlaceholder: 'openrouter/free',
+    modelHint: '例：openrouter/free（随机免费）/ deepseek/deepseek-chat-v3-0324:free',
+    guide: {
+      url: 'https://openrouter.ai/keys',
+      steps: ['访问 openrouter.ai/keys', '注册并登录 OpenRouter', '点击「Create Key」', '复制生成的 sk-or-v1- 开头的 key'],
+    },
+  },
+  {
+    id: 'deepseek' as const,
+    name: 'DeepSeek',
+    color: 'text-blue-600',
+    bg: 'bg-blue-50 dark:bg-blue-950',
+    placeholder: 'sk-...',
+    modelPlaceholder: 'deepseek-chat',
+    modelHint: '例：deepseek-chat / deepseek-reasoner',
+    guide: {
+      url: 'https://platform.deepseek.com',
+      steps: ['访问 platform.deepseek.com', '注册并登录开发者平台', '进入「API keys」创建 Key', '复制生成的 key'],
+    },
+  },
+  {
+    id: 'qwen' as const,
+    name: '通义千问',
+    color: 'text-orange-600',
+    bg: 'bg-orange-50 dark:bg-orange-950',
+    placeholder: 'sk-...',
+    modelPlaceholder: 'qwen-plus',
+    modelHint: '例：qwen-max / qwen-plus / qwen-turbo',
+    guide: {
+      url: 'https://dashscope.aliyun.com',
+      steps: ['访问 dashscope.aliyun.com', '登录阿里云百炼平台', '点击「API-KEY 管理」', '复制生成的 key'],
+    },
+  },
+  {
+    id: 'kimi' as const,
+    name: 'Kimi (Moonshot)',
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50 dark:bg-indigo-950',
+    placeholder: 'sk-...',
+    modelPlaceholder: 'moonshot-v1-8k',
+    modelHint: '例：moonshot-v1-8k / moonshot-v1-32k',
+    guide: {
+      url: 'https://platform.moonshot.cn',
+      steps: ['访问 platform.moonshot.cn', '登录月之暗面开放平台', '进入「API Key 管理」', '复制生成的 key'],
+    },
+  },
+];
 
 export const ApiKeyManager: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [showKeys, setShowKeys] = useState<{ [key: string]: boolean }>({});
-  const [newKey, setNewKey] = useState({
-    name: '',
-    provider: 'openai' as const,
-    key: ''
-  });
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [newKey, setNewKey] = useState<{ name: string; provider: 'custom' | 'deepseek' | 'qwen' | 'kimi'; key: string; model: string }>({ name: '', provider: 'custom', key: '', model: '' });
+  const [isAdding, setIsAdding] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      // 初始化内置 API Key
-      apiKeyUtils.initializeBuiltInApiKey(user.id);
-      loadApiKeys();
-    }
+    if (isAuthenticated && user) loadApiKeys();
   }, [isAuthenticated, user]);
 
-  const getStorageKey = () => {
-    if (!user?.id) return null;
-    return `api_keys_${user.id}`;
-  };
+  const storageKey = user ? `api_keys_${user.id}` : null;
 
   const loadApiKeys = () => {
-    const storageKey = getStorageKey();
     if (!storageKey) return;
-    
-    const stored = localStorage.getItem(storageKey);
-    if (stored) {
-      try {
-        setApiKeys(JSON.parse(stored));
-      } catch (error) {
-        console.error('Failed to load API keys:', error);
-      }
-    }
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) setApiKeys((JSON.parse(stored) as ApiKey[]).filter(k => !k.isBuiltIn));
+    } catch {}
   };
 
-  const saveApiKeys = (keys: ApiKey[]) => {
-    const storageKey = getStorageKey();
+  const persist = (keys: ApiKey[]) => {
     if (!storageKey) return;
-    
-    localStorage.setItem(storageKey, JSON.stringify(keys));
+    const all: ApiKey[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const builtIns = all.filter(k => k.isBuiltIn);
+    const updated = [...builtIns, ...keys];
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+    syncToServer(storageKey, updated);
     setApiKeys(keys);
+  };
+
+  const showMsg = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
   };
 
   const addApiKey = () => {
     if (!newKey.name.trim() || !newKey.key.trim()) {
-      setMessage({ type: 'error', text: '请填写完整的API Key信息' });
+      showMsg('error', '请填写名称和 API Key');
       return;
     }
-
-    const apiKey: ApiKey = {
+    const entry: ApiKey = {
       id: `key_${Date.now()}`,
       name: newKey.name.trim(),
       provider: newKey.provider,
       key: newKey.key.trim(),
-      createdAt: new Date().toISOString()
+      model: newKey.model || undefined,
+      createdAt: new Date().toISOString(),
+      isDefault: apiKeys.length === 0,
     };
-
-    const updatedKeys = [...apiKeys, apiKey];
-    saveApiKeys(updatedKeys);
-    
-    setNewKey({ name: '', provider: 'openai', key: '' });
-    setMessage({ type: 'success', text: 'API Key添加成功' });
-    
-    setTimeout(() => setMessage(null), 3000);
+    persist([...apiKeys, entry]);
+    setNewKey({ name: '', provider: 'custom', key: '', model: '' });
+    setIsAdding(false);
+    showMsg('success', 'API Key 添加成功');
   };
 
-  const deleteApiKey = (keyId: string) => {
-    // 不允许删除内置 API Key
-    const keyToDelete = apiKeys.find(key => key.id === keyId);
-    if (keyToDelete?.isBuiltIn) {
-      setMessage({ type: 'error', text: '不能删除项目内置的API Key' });
-      setTimeout(() => setMessage(null), 3000);
-      return;
-    }
-
-    const updatedKeys = apiKeys.filter(key => key.id !== keyId);
-    saveApiKeys(updatedKeys);
-    setMessage({ type: 'success', text: 'API Key删除成功' });
-    setTimeout(() => setMessage(null), 3000);
+  const deleteApiKey = (id: string) => {
+    persist(apiKeys.filter(k => k.id !== id));
+    showMsg('success', '已删除');
   };
 
-  const setAsDefault = (keyId: string) => {
-    if (!user?.id) return;
-    
-    apiKeyUtils.setDefaultApiKey(user.id, keyId);
-    loadApiKeys();
-    setMessage({ type: 'success', text: '默认API Key设置成功' });
-    setTimeout(() => setMessage(null), 3000);
+  const setDefault = (id: string) => {
+    persist(apiKeys.map(k => ({ ...k, isDefault: k.id === id })));
+    showMsg('success', '已设为默认');
   };
 
-  const toggleKeyVisibility = (keyId: string) => {
-    // 内置 API Key 不允许查看
-    const apiKey = apiKeys.find(key => key.id === keyId);
-    if (apiKey?.isBuiltIn) {
-      setMessage({ type: 'error', text: '项目内置API Key已加密，无法查看' });
-      setTimeout(() => setMessage(null), 3000);
-      return;
-    }
-
-    setShowKeys(prev => ({
-      ...prev,
-      [keyId]: !prev[keyId]
-    }));
-  };
-
-  const maskApiKey = (apiKey: ApiKey) => {
-    // 内置 API Key 不显示真实内容，只显示占位符
-    if (apiKey.isBuiltIn) {
-      return '••••••••••••••••••••••••••••••••••••••••••••••••••••';
-    }
-    
-    const key = apiKey.key;
+  const maskKey = (key: string) => {
     if (key.length <= 8) return key;
-    return key.substring(0, 4) + '•'.repeat(key.length - 8) + key.substring(key.length - 4);
-  };
-
-  const getProviderInfo = (provider: string) => {
-    switch (provider) {
-      case 'builtin':
-        return { name: '项目内置', color: 'text-emerald-600', bgColor: 'bg-emerald-50' };
-      case 'openai':
-        return { name: 'OpenAI', color: 'text-green-600', bgColor: 'bg-green-50' };
-      case 'anthropic':
-        return { name: 'Anthropic', color: 'text-orange-600', bgColor: 'bg-orange-50' };
-      case 'google':
-        return { name: 'Google AI', color: 'text-blue-600', bgColor: 'bg-blue-50' };
-      case 'custom':
-        return { name: '自定义', color: 'text-purple-600', bgColor: 'bg-purple-50' };
-      default:
-        return { name: provider, color: 'text-gray-600', bgColor: 'bg-gray-50' };
-    }
+    return key.slice(0, 6) + '•'.repeat(Math.min(key.length - 10, 20)) + key.slice(-4);
   };
 
   if (!isAuthenticated) {
     return (
       <div className="page-container layout-stable">
         <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              API Key 管理
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                请先登录Google账户以管理您的API Keys
-              </AlertDescription>
-            </Alert>
+          <CardContent className="p-8 text-center">
+            <Key className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">请先登录以管理 API Keys</p>
           </CardContent>
         </Card>
       </div>
@@ -183,262 +168,219 @@ export const ApiKeyManager: React.FC = () => {
 
   return (
     <div className="page-container layout-stable">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-2">API Key 管理</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            安全地管理您的大模型API Keys，支持多个提供商
-          </p>
+        <div>
+          <BackButton />
+          <h1 className="text-2xl font-bold mt-4 mb-1">API Key 管理</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">管理您的 AI 模型密钥，密钥加密存储在您的账户中</p>
         </div>
 
-        {/* Message */}
+        {/* Toast */}
         {message && (
-          <Alert className={message.type === 'success' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-            {message.type === 'success' ? (
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            )}
-            <AlertDescription className={message.type === 'success' ? 'text-green-800' : 'text-red-800'}>
+          <Alert className={message.type === 'success' ? 'border-green-200 bg-green-50 dark:bg-green-950' : 'border-red-200 bg-red-50 dark:bg-red-950'}>
+            {message.type === 'success'
+              ? <CheckCircle className="h-4 w-4 text-green-600" />
+              : <AlertCircle className="h-4 w-4 text-red-600" />}
+            <AlertDescription className={message.type === 'success' ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}>
               {message.text}
             </AlertDescription>
           </Alert>
         )}
 
-        <Tabs defaultValue="manage" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="manage" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              管理 API Keys
-            </TabsTrigger>
-            <TabsTrigger value="add" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              添加新 Key
-            </TabsTrigger>
-          </TabsList>
+        {/* Free models banner */}
+        <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900 rounded-lg">
+                <Sparkles className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-emerald-800 dark:text-emerald-200">系统免费模型（登录即用）</h3>
+                  <Badge className="bg-emerald-600 text-white text-xs">无需配置</Badge>
+                </div>
+                <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-2">
+                  登录后直接通过 <code className="bg-emerald-100 dark:bg-emerald-900 px-1 rounded text-xs font-mono">{FREE_MODEL_ID}</code> 路由器生成题目，OpenRouter 会自动选择当前可用的免费模型：
+                </p>
+                <span className="inline-flex items-center gap-1 text-xs bg-white dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 px-2 py-1 rounded-full">
+                  <CheckCircle className="h-3 w-3" />
+                  openrouter/free（自动路由到任意可用免费模型）
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="manage" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>已保存的 API Keys</CardTitle>
-                <CardDescription>
-                  您的API Keys安全存储在本地浏览器中，与您的Google账户关联。项目内置API Key为所有用户提供免费AI模型访问。
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {apiKeys.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Key className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      还没有保存任何API Keys
-                    </p>
-                    <Button onClick={() => (document.querySelector('[value="add"]') as HTMLElement | null)?.click()}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      添加第一个API Key
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {apiKeys.map((apiKey) => {
-                      const providerInfo = getProviderInfo(apiKey.provider);
-                      return (
-                        <div
-                          key={apiKey.id}
-                          className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className={`px-2 py-1 rounded text-xs font-medium ${providerInfo.color} ${providerInfo.bgColor}`}>
-                                  {providerInfo.name}
-                                </div>
-                                <h3 className="font-medium">{apiKey.name}</h3>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 mb-2">
-                                <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm font-mono">
-                                  {showKeys[apiKey.id] && !apiKey.isBuiltIn ? apiKey.key : maskApiKey(apiKey)}
-                                </code>
-                                {!apiKey.isBuiltIn && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleKeyVisibility(apiKey.id)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    {showKeys[apiKey.id] ? (
-                                      <EyeOff className="h-4 w-4" />
-                                    ) : (
-                                      <Eye className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                )}
-                                {apiKey.isBuiltIn && (
-                                  <div className="flex items-center gap-1">
-                                    <Badge variant="secondary" className="text-xs">
-                                      加密
-                                    </Badge>
-                                    {apiKey.isDefault && (
-                                      <Badge variant="default" className="text-xs">
-                                        默认
-                                      </Badge>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <div className="text-xs text-gray-500">
-                                创建时间: {new Date(apiKey.createdAt).toLocaleString()}
-                                {apiKey.lastUsed && (
-                                  <span className="ml-4">
-                                    最后使用: {new Date(apiKey.lastUsed).toLocaleString()}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                              {!apiKey.isDefault && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setAsDefault(apiKey.id)}
-                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
-                                >
-                                  <Star className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {!apiKey.isBuiltIn && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteApiKey(apiKey.id)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+        {/* My keys */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                我的 API Keys
+                {apiKeys.length > 0 && (
+                  <Badge variant="secondary">{apiKeys.length}</Badge>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </CardTitle>
+              <Button size="sm" onClick={() => setIsAdding(!isAdding)}>
+                <Plus className="h-4 w-4 mr-1" />
+                添加
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {apiKeys.length === 0 && !isAdding ? (
+              <div className="text-center py-8 text-gray-500">
+                <Key className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">还没有添加自己的 API Key</p>
+                <p className="text-xs mt-1 text-gray-400">添加后将优先使用您的 Key</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {apiKeys.map(k => {
+                  const provider = PROVIDERS.find(p => p.id === k.provider);
+                  const modelName = k.model || provider?.modelPlaceholder || '';
+                  return (
+                    <div key={k.id} className={`border rounded-lg p-4 ${k.isDefault ? 'border-blue-300 bg-blue-50/50 dark:bg-blue-950/20' : ''}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${provider?.color ?? 'text-gray-600'} ${provider?.bg ?? 'bg-gray-100'}`}>
+                              {provider?.name ?? k.provider}
+                            </span>
+                            <span className="font-medium text-sm truncate">{k.name}</span>
+                            {k.isDefault && <Badge className="text-xs bg-blue-600">默认</Badge>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded font-mono">
+                              {showKeys[k.id] ? k.key : maskKey(k.key)}
+                            </code>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0"
+                              onClick={() => setShowKeys(prev => ({ ...prev, [k.id]: !prev[k.id] }))}>
+                              {showKeys[k.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">
+                            模型：<span className="text-gray-600 dark:text-gray-300">{modelName}</span>
+                            <span className="mx-2">·</span>
+                            创建于 {new Date(k.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {!k.isDefault && (
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400 hover:text-blue-600"
+                              title="设为默认" onClick={() => setDefault(k.id)}>
+                              <Star className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400 hover:text-red-600"
+                            onClick={() => deleteApiKey(k.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-          <TabsContent value="add" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>添加新的 API Key</CardTitle>
-                <CardDescription>
-                  添加您的大模型API Key以启用AI功能
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="keyName">名称</Label>
-                  <Input
-                    id="keyName"
-                    placeholder="例如: 我的OpenAI Key"
-                    value={newKey.name}
-                    onChange={(e) => setNewKey(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="provider">提供商</Label>
-                  <select
-                    id="provider"
-                    className="w-full p-2 border rounded-md bg-background"
-                    value={newKey.provider}
-                    onChange={(e) => setNewKey(prev => ({ ...prev, provider: e.target.value as any }))}
-                  >
-                    <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
-                    <option value="anthropic">Anthropic (Claude)</option>
-                    <option value="google">Google AI (Gemini)</option>
-                    <option value="custom">自定义</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="apiKey">API Key</Label>
-                  <Input
-                    id="apiKey"
-                    type="password"
-                    placeholder="sk-..."
-                    value={newKey.key}
-                    onChange={(e) => setNewKey(prev => ({ ...prev, key: e.target.value }))}
-                  />
-                  <p className="text-xs text-gray-500">
-                    您的API Key将安全存储在本地浏览器中，不会上传到服务器
-                  </p>
-                </div>
-
-                <Button onClick={addApiKey} className="w-full">
-                  <Save className="h-4 w-4 mr-2" />
-                  保存 API Key
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Provider Instructions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  如何获取API Key
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="border rounded-lg p-4">
-                    <h4 className="font-medium text-green-600 mb-2">OpenAI</h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      1. 访问 platform.openai.com<br/>
-                      2. 登录并进入API Keys页面<br/>
-                      3. 点击"Create new secret key"<br/>
-                      4. 复制生成的key
-                    </p>
+            {/* Inline add form */}
+            {isAdding && (
+              <div className="mt-4 border rounded-lg p-4 bg-gray-50 dark:bg-gray-900 space-y-3">
+                <h4 className="font-medium text-sm">添加新的 API Key</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">名称</Label>
+                    <Input placeholder="例如：我的 DeepSeek Key" value={newKey.name}
+                      onChange={e => setNewKey(p => ({ ...p, name: e.target.value }))} />
                   </div>
-                  
-                  <div className="border rounded-lg p-4">
-                    <h4 className="font-medium text-orange-600 mb-2">Anthropic</h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      1. 访问 console.anthropic.com<br/>
-                      2. 登录并进入API Keys<br/>
-                      3. 点击"Create Key"<br/>
-                      4. 复制生成的key
-                    </p>
-                  </div>
-                  
-                  <div className="border rounded-lg p-4">
-                    <h4 className="font-medium text-blue-600 mb-2">Google AI</h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      1. 访问 makersuite.google.com<br/>
-                      2. 登录Google账户<br/>
-                      3. 获取API Key<br/>
-                      4. 复制生成的key
-                    </p>
-                  </div>
-                  
-                  <div className="border rounded-lg p-4">
-                    <h4 className="font-medium text-purple-600 mb-2">安全提醒</h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      • 不要分享您的API Key<br/>
-                      • 定期轮换API Key<br/>
-                      • 监控API使用情况<br/>
-                      • 设置使用限制
-                    </p>
+                  <div className="space-y-1">
+                    <Label className="text-xs">提供商</Label>
+                    <select className="w-full h-10 px-3 border rounded-md bg-background text-sm"
+                      value={newKey.provider}
+                      onChange={e => setNewKey(p => ({ ...p, provider: e.target.value as any, model: '' }))}>
+                      {PROVIDERS.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">使用模型（可选）</Label>
+                    <Input
+                      placeholder={PROVIDERS.find(p => p.id === newKey.provider)?.modelPlaceholder ?? 'deepseek-chat'}
+                      value={newKey.model}
+                      onChange={e => setNewKey(p => ({ ...p, model: e.target.value }))}
+                    />
+                    <p className="text-xs text-gray-400">
+                      {PROVIDERS.find(p => p.id === newKey.provider)?.modelHint}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">API Key</Label>
+                    <Input type="password"
+                      placeholder={PROVIDERS.find(p => p.id === newKey.provider)?.placeholder ?? 'sk-...'}
+                      value={newKey.key}
+                      onChange={e => setNewKey(p => ({ ...p, key: e.target.value }))}
+                      onKeyDown={e => e.key === 'Enter' && addApiKey()} />
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" onClick={() => { setIsAdding(false); setNewKey({ name: '', provider: 'custom', key: '', model: '' }); }}>
+                    取消
+                  </Button>
+                  <Button size="sm" onClick={addApiKey}>保存</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Security note */}
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
+          <CardContent className="p-4">
+            <div className="flex gap-2">
+              <Shield className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-amber-800 dark:text-amber-200 space-y-1">
+                <p className="font-medium">安全提醒</p>
+                <p className="text-xs">您的 Key 加密存储在服务器中并与账号绑定 · 不同设备登录后自动同步 · 请勿分享您的 Key · 请定期检查 API 用量</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* How to get guide */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">如何获取 API Key</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              {PROVIDERS.map(p => (
+                <div key={p.id} className={`rounded-lg p-4 ${p.bg}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className={`font-semibold ${p.color}`}>{p.name}</h4>
+                    <a href={p.guide.url} target="_blank" rel="noopener noreferrer"
+                      className={`${p.color} hover:underline`}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
+                  <ol className="space-y-1">
+                    {p.guide.steps.map((step, i) => (
+                      <li key={i} className="text-xs text-gray-600 dark:text-gray-300 flex gap-1.5">
+                        <span className={`font-bold ${p.color} flex-shrink-0`}>{i + 1}.</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

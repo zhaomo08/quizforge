@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthPage } from './AuthPage';
 import { Loader2 } from 'lucide-react';
+import { storage } from '@/utils/storage';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -45,6 +46,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       });
       const data = await response.json();
       setSession(data);
+      if (data?.user) {
+        // 当获取到用户会话后，拉取远端存储同步到本地
+        await storage.loadAllFromServer();
+        
+        // 特别处理 api_keys_${userId}
+        try {
+          const apiKeysRes = await fetch(`/api/storage/api_keys_${data.user.id}`, { credentials: 'include' });
+          if (apiKeysRes.ok) {
+            const apiKeysData = await apiKeysRes.json();
+            if (apiKeysData !== null) {
+              localStorage.setItem(`api_keys_${data.user.id}`, JSON.stringify(apiKeysData));
+            }
+          }
+        } catch (e) {
+          console.error('Failed to load api keys from server', e);
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch session:', error);
       setSession({ user: null, session: null });
@@ -84,6 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       
       // 清除本地session状态
       setSession({ user: null, session: null });
+      storage.clearLocalData();
       
       if (requireAuth) {
         setShowAuth(true);

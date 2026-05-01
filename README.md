@@ -5,11 +5,14 @@
 ## 🚀 功能特性
 
 - **AI智能出题**: 基于不同技术领域自动生成面试题目
+- **多AI服务商支持**: 支持DeepSeek、月之暗面(Kimi)、阿里百炼(通义千问)等多个AI服务
+- **API Key管理**: 安全的API Key管理系统，支持多Key配置和跨设备同步
 - **多种题型支持**: 选择题、编程题、开放性问题等
 - **个性化学习**: 根据答题情况提供智能学习建议
 - **错题回顾**: 专门的错题页面帮助巩固薄弱知识点
 - **数据分析**: 详细的答题统计和学习进度分析
 - **Google OAuth**: 安全的用户认证系统
+- **Redis数据同步**: 用户数据跨设备实时同步
 - **响应式设计**: 支持桌面端和移动端
 - **暗色模式**: 护眼的深色主题支持
 
@@ -20,6 +23,7 @@
 - **UI组件**: Radix UI + Tailwind CSS
 - **状态管理**: React Context
 - **认证系统**: Better Auth + Google OAuth
+- **数据存储**: Redis + localStorage
 - **表单处理**: React Hook Form + Zod
 - **图表组件**: Recharts
 - **通知系统**: Sonner
@@ -58,6 +62,12 @@ cp .env.example .env
 # Google OAuth 配置
 VITE_GOOGLE_CLIENT_ID=your_google_client_id
 VITE_GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Redis 配置（用于数据同步）
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=your_redis_password
+REDIS_DB=2
 
 # 其他配置...
 ```
@@ -115,6 +125,7 @@ npm run preview
 - `npm run build` - 构建生产版本
 - `npm run lint` - 运行ESLint代码检查
 - `npm run preview` - 预览生产版本
+- `npm run test:redis` - 测试Redis连接和数据同步
 - `npm run test:oauth` - 测试Google OAuth配置
 - `npm run setup:oauth` - OAuth设置向导
 
@@ -141,6 +152,37 @@ src/
 - `GOOGLE_OAUTH_FINAL_GUIDE.md` - 最终配置指南
 - `AUTH_IMPLEMENTATION_SUMMARY.md` - 认证实现总结
 
+## 🔑 API Key 管理
+
+QuizForge支持多个AI服务提供商的API Key管理，详细说明请参考：
+
+- `API_KEY_GUIDE.md` - API Key管理功能完整指南
+- `API_KEY_USAGE_EXAMPLES.md` - 使用示例和最佳实践
+
+### 支持的AI服务商
+
+1. **DeepSeek** (深度求索)
+   - 官网: https://platform.deepseek.com
+   - 模型: deepseek-chat, deepseek-reasoner
+
+2. **月之暗面** (Moonshot AI / Kimi)
+   - 官网: https://platform.moonshot.cn
+   - 模型: moonshot-v1-8k, moonshot-v1-32k
+
+3. **阿里百炼** (通义千问 / Qwen)
+   - 官网: https://dashscope.aliyun.com
+   - 模型: qwen-turbo, qwen-plus, qwen-max
+
+4. **自定义API**
+   - 支持任何兼容OpenAI API格式的服务
+
+### 数据同步
+
+- **本地存储**: localStorage (浏览器)
+- **远程存储**: Redis (跨设备同步)
+- **同步方式**: Google登录后自动同步
+- **安全性**: 用户数据隔离，API Key加密存储
+
 ## 📱 主要页面
 
 - **首页**: 平台介绍和快速开始
@@ -150,6 +192,7 @@ src/
 - **错题回顾**: 专门的错题练习
 - **数据分析**: 学习进度和统计图表
 - **题目管理**: 自定义题目库管理
+- **API Key管理**: 管理多个AI服务商的API密钥
 
 ## 🎨 主题支持
 

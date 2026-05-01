@@ -7,7 +7,7 @@ import {
   Key
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
-import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 
 interface UserMenuProps {
   onLogout?: () => void;
@@ -15,7 +15,7 @@ interface UserMenuProps {
 
 export const UserMenu: React.FC<UserMenuProps> = ({ onLogout }) => {
   const { isAuthenticated, user, signOut } = useAuth();
-  const { dispatch } = useApp();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [showAvatarImage, setShowAvatarImage] = useState(!!user?.picture);
 
@@ -132,9 +132,9 @@ export const UserMenu: React.FC<UserMenuProps> = ({ onLogout }) => {
 
               {/* Menu Items */}
               <div className="py-2">
-                <button 
+                <button
                   onClick={() => {
-                    dispatch({ type: 'SET_PAGE', payload: 'api-keys' });
+                    navigate('/api-keys');
                     setIsOpen(false);
                   }}
                   className="w-full flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"

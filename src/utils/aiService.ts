@@ -1,131 +1,114 @@
 import { Question } from '@/types';
 import { parseModelResponse } from '@/utils/ai/responseParser';
-import { modelRegistry, ModelConfig } from '@/utils/ai/modelRegistry';
-import { resolveApiKey, getProjectApiKey } from '@/utils/ai/apiKeyResolver';
+import { modelRegistry, PROVIDER_MODELS, ModelConfig } from '@/utils/ai/modelRegistry';
+import { resolveApiKey, getProjectApiKey, ResolvedApiKey } from '@/utils/ai/apiKeyResolver';
 
 export interface AIGenerateRequest {
   category: string;
   count: number;
   difficulty?: string;
-  apiKey?: string; // 现在是可选的
-  userId?: string; // 用户ID，用于判断是否使用内置API Key
-  // 任务型模型路由：
-  // fast - 速度优先/大多数出题任务（默认）
-  // reasoning - 推理优先/更复杂解析任务
+  apiKey?: string;
+  userId?: string;
+  keyId?: string;   // 用户选择的具体 key ID（付费模型）
   strategy?: 'fast' | 'reasoning';
 }
 
+// API base URL per provider
+const PROVIDER_BASE_URL: Record<string, string> = {
+  builtin:  'https://openrouter.ai/api/v1',
+  custom:   'https://openrouter.ai/api/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  qwen:     'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  kimi:     'https://api.moonshot.cn/v1',
+};
+
+// OpenRouter free 路由器：自动选择可用的免费模型
+const STRATEGY_OPENROUTER: Record<'fast' | 'reasoning', string> = {
+  fast:      'openrouter/free',
+  reasoning: 'openrouter/free',
+};
+
+// 策略到各原生厂商首选模型的映射
+const STRATEGY_NATIVE: Record<string, Record<'fast' | 'reasoning', string>> = {
+  deepseek: { fast: 'deepseek-chat',     reasoning: 'deepseek-reasoner' },
+  qwen:     { fast: 'qwen-plus',         reasoning: 'qwen-max'          },
+  kimi:     { fast: 'moonshot-v1-8k',    reasoning: 'moonshot-v1-32k'   },
+};
+
 export class AIService {
-  // 调试方法：获取当前 API Key
   static getProjectApiKey(): string {
-    const key = getProjectApiKey();
-    console.log(
-      '🔑 当前项目 API Key:',
-      key ? `${key.substring(0, 8)}...${key.substring(key.length - 4)}` : '未设置'
-    );
-    return key;
+    return getProjectApiKey();
   }
 
-  // 获取要使用的 API Key
-  private static getApiKey(userApiKey?: string, userId?: string): string {
-    const logger = (message: string, value?: unknown) => {
-      if (typeof value !== 'undefined') {
-        console.log(message, value);
-      } else {
-        console.log(message);
-      }
-    };
-
-    const key = resolveApiKey({
-      userApiKey,
-      userId,
-      validate: this.validateApiKey,
-      logger,
-    });
-
-    logger('import.meta.env:', (import.meta as any).env);
-
-    return key;
+  private static resolveKey(userApiKey?: string, userId?: string, keyId?: string): ResolvedApiKey {
+    const opts: Parameters<typeof resolveApiKey>[0] = { validate: this.validateApiKey };
+    if (userApiKey !== undefined) opts.userApiKey = userApiKey;
+    if (userId !== undefined) opts.userId = userId;
+    if (keyId !== undefined) opts.keyId = keyId;
+    return resolveApiKey(opts);
   }
 
-  // 根据策略选择首选模型（若该模型不存在于 registry，则忽略）
-  private static selectPreferredModelByStrategy(strategy: 'fast' | 'reasoning'): void {
-    // 若用户已手动选择模型，则不再用策略覆盖
-    try {
-      // modelRegistry 暴露 hasUserSelection（在 modelRegistry.ts 中新增）
-      // @ts-ignore - 访问可选方法以兼容旧实现
-      if (modelRegistry.hasUserSelection && modelRegistry.hasUserSelection()) {
-        return;
-      }
-    } catch {}
-    const mapping: Record<'fast' | 'reasoning', string> = {
-      // 优先中文与稳定的 DeepSeek 3.1 作为速度优先的默认
-      fast: 'deepseek/deepseek-chat-v3.1:free',
-      // 推理优先使用 DeepSeek R1 0528
-      reasoning: 'deepseek/deepseek-r1-0528:free',
-    };
-    const preferredId = mapping[strategy];
-    if (!preferredId) return;
-    const ok = modelRegistry.setActiveModel(preferredId);
-    if (ok) {
-      console.log(`🎯 策略(${strategy})已选择首选模型: ${preferredId}`);
-    } else {
-      console.log(`ℹ️ 策略(${strategy})的首选模型 ${preferredId} 不在注册表中，使用当前轮询模型`);
-    }
-  }
-
-  private static async callOpenRouter(
+  private static async callApi(
     prompt: string,
-    apiKey: string,
+    apiKeyData: ResolvedApiKey,
     retryCount = 0
   ): Promise<{ content: string; modelUsed: ModelConfig }> {
-    const maxRetries = modelRegistry.total * 2; // 允许每个模型重试一次
+    const provider = apiKeyData.provider;
+
+    // 同步 registry 到当前 provider，然后立刻恢复用户指定的模型
+    modelRegistry.switchProvider(provider);
+    if (apiKeyData.preferredModel) {
+      modelRegistry.upsertAndActivate(apiKeyData.preferredModel);
+    }
+
+    const models = PROVIDER_MODELS[provider] ?? PROVIDER_MODELS['builtin']!;
+    // maxRetries 要包含可能动态追加的自定义模型（至少 2 次）
+    const maxRetries = Math.max(models.length, 1) * 2;
 
     if (retryCount >= maxRetries) {
       throw new Error('所有模型都不可用，请稍后重试或检查网络连接');
     }
 
-    // 选择模型：优先使用上次成功的模型，否则按顺序轮询
     let modelToUse = modelRegistry.getActiveModel();
-
     if (modelRegistry.shouldSkip(modelToUse.id)) {
       modelToUse = modelRegistry.advance();
     }
 
-    console.log(`🤖 尝试使用模型: ${modelToUse.name} (${modelToUse.id})`);
+    const baseURL = PROVIDER_BASE_URL[provider] ?? PROVIDER_BASE_URL['builtin']!;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKeyData.key}`,
+    };
+    if (provider === 'builtin' || provider === 'custom') {
+      headers['HTTP-Referer'] = window.location.origin;
+      headers['X-Title'] = 'QuizForge AI';
+    }
+
+    console.log(`🤖 [${provider}] ${modelToUse.name} (${modelToUse.id})`);
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45秒超时
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
 
       let response: Response;
-
       try {
-        response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'AI Interview Assistant',
-        },
-        body: JSON.stringify({
-          model: modelToUse.id,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert technical interviewer. Generate high-quality interview questions with clear explanations. Always respond in Chinese and return valid JSON format.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.8,
-          max_tokens: modelToUse.maxTokens,
-          top_p: 0.9,
-        }),
-        signal: controller.signal,
+        response = await fetch(`${baseURL}/chat/completions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model: modelToUse.id,
+            messages: [
+              {
+                role: 'system',
+                content: '你是专业的技术面试官，负责生成高质量面试题。只返回有效的JSON格式，不要包含任何其他文字或Markdown标记。',
+              },
+              { role: 'user', content: prompt },
+            ],
+            temperature: 0.8,
+            max_tokens: modelToUse.maxTokens,
+            top_p: 0.9,
+          }),
+          signal: controller.signal,
         });
       } finally {
         clearTimeout(timeoutId);
@@ -133,95 +116,57 @@ export class AIService {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
-        let errorMessage = `HTTP ${response.status}`;
-        let parsedError: any = null;
-
+        let errorMsg = `HTTP ${response.status}`;
         try {
-          parsedError = JSON.parse(errorText);
-          errorMessage = parsedError.error?.message || errorMessage;
-        } catch {
-          // 忽略 JSON 解析错误，保留原始文本
-        }
+          errorMsg = JSON.parse(errorText).error?.message ?? errorMsg;
+        } catch {}
 
-        // 429 友好重试：尊重 Retry-After 头，不计失败、不轮换模型
         if (response.status === 429) {
-          const retryAfterHeader = response.headers.get('Retry-After');
-          let waitMs = 0;
-          if (retryAfterHeader) {
-            const asInt = parseInt(retryAfterHeader, 10);
-            if (!Number.isNaN(asInt)) {
-              waitMs = asInt * 1000; // 秒
-            } else {
-              const asDate = Date.parse(retryAfterHeader);
-              if (!Number.isNaN(asDate)) {
-                waitMs = Math.max(asDate - Date.now(), 0);
-              }
-            }
+          const retryAfter = response.headers.get('Retry-After');
+          let wait = 1500 + Math.random() * 600;
+          if (retryAfter) {
+            const sec = parseInt(retryAfter, 10);
+            if (!isNaN(sec)) wait = sec * 1000;
           }
-          // 默认等待 1.5s，加入±300ms 抖动
-          if (waitMs <= 0) {
-            waitMs = 1500 + Math.floor((Math.random() - 0.5) * 600);
-          }
-          console.warn(`⏳ 命中限流 429，等待 ${waitMs}ms 后重试（不轮换模型）`);
-          await new Promise(r => setTimeout(r, waitMs));
-          return this.callOpenRouter(prompt, apiKey, retryCount + 1);
+          console.warn(`⏳ 限流 429，等待 ${Math.round(wait)}ms`);
+          await new Promise(r => setTimeout(r, wait));
+          return this.callApi(prompt, apiKeyData, retryCount + 1);
         }
 
-        // 针对 OpenRouter 返回的 401 "User not found." 给出更友好的提示
-        if (response.status === 401 && parsedError?.error?.message && parsedError.error.message.toLowerCase().includes('user not found')) {
-          const safeKeyHint = apiKey && typeof apiKey === 'string' && apiKey.length > 10 ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}` : '（未提供）';
-          throw new Error(`OpenRouter 返回 401: User not found. 这通常表示所使用的 API Key 无效或未正确关联到 OpenRouter 帐号。\n使用的 Key（部分）：${safeKeyHint}\n解决办法：确保在项目环境变量 VITE_OPENROUTER_API_KEY 中配置了有效的 OpenRouter API Key，或在“API Key 管理”中添加有效 Key；如仍有问题，请登录 OpenRouter 控制台确认 Key 状态。`);
+        if (response.status === 401) {
+          throw new Error(`API Key 无效 (401)。请在「API Key 管理」中检查您的密钥。`);
         }
 
-        throw new Error(`模型 ${modelToUse.name} 请求失败: ${errorMessage}`);
+        throw new Error(`${modelToUse.name} 请求失败: ${errorMsg}`);
       }
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content;
-
-      if (!content || content.trim().length === 0) {
-        throw new Error(`模型 ${modelToUse.name} 返回空内容`);
+      if (!content?.trim()) {
+        throw new Error(`${modelToUse.name} 返回空内容`);
       }
 
-      // 成功时重置失败计数并记录成功模型
       modelRegistry.markSuccess(modelToUse.id);
-
-      console.log(`✅ 模型 ${modelToUse.name} 生成成功`);
-
-      return {
-        content,
-        modelUsed: modelToUse
-      };
+      console.log(`✅ ${modelToUse.name} 生成成功`);
+      return { content, modelUsed: modelToUse };
 
     } catch (error) {
-  const failureCount = modelRegistry.markFailure(modelToUse.id);
+      if (error instanceof Error && error.message.includes('401')) throw error;
 
-  console.warn(`❌ 模型 ${modelToUse.name} 失败 (第${failureCount}次):`, error);
+      const failures = modelRegistry.markFailure(modelToUse.id);
+      console.warn(`❌ ${modelToUse.name} 失败(第${failures}次):`, error);
+      modelRegistry.advance();
 
-  modelRegistry.advance();
-
-      const immediateRetry =
-        error instanceof Error && (
-          error.name === 'AbortError' ||
-          error.message.includes('fetch') ||
-          error.message.includes('network') ||
-          error.message.includes('timeout') ||
-          error.message.includes('503') ||
-          error.message.includes('502') ||
-          error.message.includes('500') ||
-          error.message.includes('ISO-8859-1') ||
-          error.message.includes('non ISO-8859-1')
-        );
-
-      if (!immediateRetry) {
-        const delay = Math.min(
-          1000 * Math.pow(2, Math.floor(retryCount / Math.max(modelRegistry.total, 1))),
-          5000
-        );
-        await new Promise(resolve => setTimeout(resolve, delay));
+      const isNetworkError = error instanceof Error && (
+        error.name === 'AbortError' ||
+        /fetch|network|timeout|503|502|500/i.test(error.message)
+      );
+      if (!isNetworkError) {
+        const delay = Math.min(1000 * 2 ** Math.floor(retryCount / Math.max(models.length, 1)), 5000);
+        await new Promise(r => setTimeout(r, delay));
       }
 
-      return this.callOpenRouter(prompt, apiKey, retryCount + 1);
+      return this.callApi(prompt, apiKeyData, retryCount + 1);
     }
   }
 
@@ -231,41 +176,32 @@ export class AIService {
     difficulty = 'medium',
     apiKey,
     userId,
+    keyId,
     strategy,
   }: AIGenerateRequest): Promise<Question[]> {
-    // 获取要使用的 API Key
-    const effectiveApiKey = this.getApiKey(apiKey, userId);
-    const categoryMap: Record<string, string> = {
-      'java': 'Java编程',
-      'python': 'Python编程',
-      'javascript': 'JavaScript编程',
-      'database': '数据库',
-      'algorithm': '算法与数据结构',
-      'system-design': '系统设计',
-      'operating-system': '操作系统',
-    };
+    const keyData = this.resolveKey(apiKey, userId, keyId);
+    const provider = keyData.provider;
 
-    const categoryName = categoryMap[category] || category;
-    const difficultyMap: Record<string, string> = {
-      'easy': '初级',
-      'medium': '中级',
-      'hard': '高级'
-    };
-    const difficultyName = difficultyMap[difficulty] || difficulty;
-
-    // 任务型模型路由：若未显式指定 strategy，则按难度推断（hard -> reasoning，其它 -> fast）
-    const effectiveStrategy: 'fast' | 'reasoning' = strategy
-      ? strategy
-      : (difficulty === 'hard' ? 'reasoning' : 'fast');
-
-    // 在调用前设置策略对应的首选模型，失败时由 callOpenRouter 内的轮询与重试接管
-    try {
-      this.selectPreferredModelByStrategy(effectiveStrategy);
-    } catch (e) {
-      console.warn('设置策略首选模型失败，继续使用当前模型轮询:', e);
+    // 同步 registry 到正确 provider，然后按优先级设置模型
+    modelRegistry.switchProvider(provider);
+    if (keyData.preferredModel) {
+      // 用户在 API Key 管理里指定了具体模型，最高优先级（支持不在预设列表中的自定义 ID）
+      modelRegistry.upsertAndActivate(keyData.preferredModel);
+    } else if (!modelRegistry.hasUserSelection()) {
+      // 按难度/策略选择首选模型
+      const effectiveStrategy: 'fast' | 'reasoning' = strategy ?? (difficulty === 'hard' ? 'reasoning' : 'fast');
+      const preferredId = (STRATEGY_NATIVE[provider] ?? STRATEGY_OPENROUTER)[effectiveStrategy];
+      if (preferredId) modelRegistry.setActiveModel(preferredId);
     }
 
-    const prompt = `请生成${count}道${difficultyName}难度的${categoryName}面试题，严格按照以下JSON格式返回：
+    const categoryMap: Record<string, string> = {
+      java: 'Java编程', python: 'Python编程', javascript: 'JavaScript编程',
+      database: '数据库', algorithm: '算法与数据结构',
+      'system-design': '系统设计', 'operating-system': '操作系统',
+    };
+    const difficultyMap: Record<string, string> = { easy: '初级', medium: '中级', hard: '高级' };
+
+    const prompt = `请生成${count}道${difficultyMap[difficulty] ?? difficulty}难度的${categoryMap[category] ?? category}面试题，严格按照以下JSON格式返回：
 
 [
   {
@@ -278,87 +214,39 @@ export class AIService {
 ]
 
 要求：
-- 题目应该是${categoryName}领域常见的面试问题
 - 每道题必须有4个选项（A、B、C、D）
 - correctAnswer是正确答案的索引（0-3）
-- 提供详细的解释说明
-- 涵盖${categoryName}的不同方面
-- 确保题目清晰明确，选项有区分度
+- 提供详细的中文解释
+- 题目清晰，选项有区分度
 - 所有内容使用中文
-- 只返回有效的JSON格式，不要包含任何其他文本或markdown标记
+- 只返回有效的JSON数组，不要包含任何其他文本或markdown标记
 
 请直接返回JSON数组：`;
 
     try {
-      const { content, modelUsed } = await this.callOpenRouter(prompt, effectiveApiKey);
-      const questions = parseModelResponse(content, {
-        category,
-        difficulty,
-        modelName: modelUsed.name,
-      });
-
-      console.log(`✅ 成功使用${modelUsed.name}生成${questions.length}道题目`);
+      const { content, modelUsed } = await this.callApi(prompt, keyData);
+      const questions = parseModelResponse(content, { category, difficulty, modelName: modelUsed.name });
+      console.log(`✅ 使用 ${modelUsed.name} 生成了 ${questions.length} 道题目`);
       return questions;
-
     } catch (error) {
-      console.error('生成题目失败:', error);
-
-      if (error instanceof Error) {
-        // 如果错误信息包含模型名称，直接抛出
-        if (error.message.includes('模型')) {
-          throw error;
-        }
-        throw new Error(`生成题目失败: ${error.message}`);
-      }
-
+      if (error instanceof Error) throw new Error(`生成题目失败: ${error.message}`);
       throw new Error('生成题目失败，请检查网络连接或稍后重试');
     }
   }
 
   static validateApiKey(apiKey: string): boolean {
-    return typeof apiKey === 'string' && apiKey.length >= 20 && apiKey.trim().length > 0;
+    return typeof apiKey === 'string' && apiKey.length >= 20;
   }
 
-  // 获取当前使用的模型信息
-  static getCurrentModelInfo(): { model: string; name: string; description: string; index: number; total: number } {
-    const currentModel = modelRegistry.getActiveModel();
-    return {
-      model: currentModel.id,
-      name: currentModel.name,
-      description: currentModel.description,
-      index: modelRegistry.getHealthSnapshot().currentModel.index,
-      total: modelRegistry.total
-    };
+  static getCurrentModelInfo() {
+    const m = modelRegistry.getActiveModel();
+    const snap = modelRegistry.getHealthSnapshot();
+    return { model: m.id, name: m.name, description: m.description, index: snap.currentModel.index, total: modelRegistry.total };
   }
 
-  // 获取所有可用模型
-  static getAllModels() {
-    return modelRegistry.getAllModels();
-  }
-
-  // 手动切换模型
-  static switchToNextModel(): void {
-    modelRegistry.advance();
-  }
-
-  // 切换到指定模型
-  static switchToModel(modelId: string): boolean {
-    // 优先标记为用户选择的模型，以避免被策略覆盖
-    // @ts-ignore - 使用新增的 API，旧实现回退到 setActiveModel
-    if (modelRegistry.setUserSelectedModel) {
-      // @ts-ignore
-      return modelRegistry.setUserSelectedModel(modelId);
-    }
-    return modelRegistry.setActiveModel(modelId);
-  }
-
-  // 重置模型失败计数
-  static resetModelFailures(): void {
-    modelRegistry.resetFailures();
-  }
-
-  // 获取模型健康状态
-  static getModelHealth() {
-    return modelRegistry.getHealthSnapshot();
-  }
+  static getAllModels() { return modelRegistry.getAllModels(); }
+  static switchToNextModel(): void { modelRegistry.advance(); }
+  static switchToModel(modelId: string): boolean { return modelRegistry.setUserSelectedModel(modelId); }
+  static resetModelFailures(): void { modelRegistry.resetFailures(); }
+  static getModelHealth() { return modelRegistry.getHealthSnapshot(); }
 }

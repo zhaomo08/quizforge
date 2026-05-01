@@ -1,15 +1,13 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Target, 
-  Clock, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
+  Clock,
   Brain,
   AlertTriangle,
-  CheckCircle,
   Lightbulb,
   BookOpen,
   Zap,
@@ -85,10 +83,10 @@ export const LearningInsights: React.FC<LearningInsightsProps> = ({ onNavigate }
       if (!categoryStats[test.category]) {
         categoryStats[test.category] = { tests: [], avgScore: 0 };
       }
-      categoryStats[test.category].tests.push(test);
+      categoryStats[test.category]!.tests.push(test);
     });
 
-    Object.entries(categoryStats).forEach(([category, data]) => {
+    Object.entries(categoryStats).forEach(([, data]) => {
       data.avgScore = data.tests.reduce((sum, test) => sum + test.score, 0) / data.tests.length;
     });
 

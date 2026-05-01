@@ -1,16 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Play, Settings } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { testUtils } from '@/utils/testUtils';
 
 export const TestSetup: React.FC = () => {
   const { state, dispatch } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [questionCount, setQuestionCount] = useState('10');
+
+  useEffect(() => {
+    // 从URL参数获取分类
+    const categoryFromUrl = searchParams.get('category');
+    
+    if (categoryFromUrl) {
+      // 如果URL中有分类且与当前state不同，更新state
+      if (categoryFromUrl !== state.selectedCategory) {
+        dispatch({ type: 'SET_CATEGORY', payload: categoryFromUrl });
+      }
+    } else if (!state.selectedCategory) {
+      // 如果URL和state都没有分类，重定向到分类选择页
+      navigate('/category');
+    }
+  }, [searchParams, state.selectedCategory, navigate, dispatch]);
 
   const handleStartTest = () => {
     const count = parseInt(questionCount);

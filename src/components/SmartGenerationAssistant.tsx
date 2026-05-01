@@ -28,7 +28,6 @@ interface SmartGenerationAssistantProps {
 
 export const SmartGenerationAssistant: React.FC<SmartGenerationAssistantProps> = ({
   onApplyRecommendation,
-  currentSettings
 }) => {
   const [recommendations, setRecommendations] = useState<SmartRecommendation[]>([]);
   const [insights, setInsights] = useState<GenerationInsight[]>([]);

@@ -2,21 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Bell, 
-  BellRing, 
-  Check, 
-  X, 
-  Trophy, 
-  Target, 
-  TrendingUp, 
+import {
+  Check,
+  X,
+  Trophy,
+  Target,
+  TrendingUp,
   Calendar,
-  AlertCircle,
   CheckCircle,
   Trash2
 } from 'lucide-react';
 import { notificationSystem, Notification } from '@/utils/notificationSystem';
-import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
+import { pageToPath } from '@/routes';
 import { SiteIcon } from '@/components/icons/SiteIcon';
 
 interface NotificationCenterProps {
@@ -26,7 +24,7 @@ interface NotificationCenterProps {
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, onClose, onUpdate }) => {
-  const { dispatch } = useApp();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -65,7 +63,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ isOpen, 
     }
     
     if (notification.actionUrl) {
-      dispatch({ type: 'SET_PAGE', payload: notification.actionUrl });
+      const path = notification.actionUrl.startsWith('/')
+        ? notification.actionUrl
+        : (pageToPath[notification.actionUrl] ?? '/');
+      navigate(path);
       onClose();
     }
   };

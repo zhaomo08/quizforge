@@ -22,7 +22,7 @@ export const GoogleOAuthTest: React.FC = () => {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
   const [testResults, setTestResults] = useState<any[]>([]);
-  const { data: session, isPending } = useSession();
+  const { data: session } = useSession();
 
   const config = getGoogleOAuthConfig();
   const validation = validateGoogleOAuthConfig();
@@ -63,12 +63,12 @@ export const GoogleOAuthTest: React.FC = () => {
       // 测试 3: URL 生成
       if (!config.isDemoMode) {
         try {
-          const authURL = generateGoogleAuthURL(
+          generateGoogleAuthURL(
             config.clientId,
             `${window.location.origin}/api/auth/callback/google`,
             'test-state'
           );
-          
+
           addTestResult(
             'OAuth URL 生成',
             'pass',

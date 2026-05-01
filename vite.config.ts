@@ -18,5 +18,35 @@ export default defineConfig(({ command }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    build: {
+      // 关闭 sourcemap（生产环境减小产物体积）
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks: (id: string) => {
+            // Radix UI 组件库单独 chunk（30+ 个包）
+            if (id.includes('@radix-ui')) {
+              return 'vendor-radix'
+            }
+            // Recharts 图表库
+            if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-')) {
+              return 'vendor-charts'
+            }
+            // PDF 导出库（按需只在使用时加载，此 chunk 作为分组标记）
+            if (id.includes('jspdf') || id.includes('jspdf-autotable')) {
+              return 'vendor-pdf'
+            }
+            // React 核心
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+              return 'vendor-react'
+            }
+            // 其他 node_modules 统一归入 vendor
+            if (id.includes('node_modules')) {
+              return 'vendor'
+            }
+          },
+        },
+      },
+    },
   }
 })

@@ -1,8 +1,11 @@
+import { syncToServer } from './storage';
+
 interface ApiKey {
   id: string;
   name: string;
-  provider: 'openai' | 'anthropic' | 'google' | 'custom' | 'builtin';
+  provider: 'deepseek' | 'qwen' | 'kimi' | 'builtin' | 'custom';
   key: string;
+  model?: string;  // 用户指定的具体模型 ID
   createdAt: string;
   lastUsed?: string;
   isDefault?: boolean;
@@ -78,6 +81,7 @@ export const apiKeyUtils = {
               : k
           );
           localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+          syncToServer(storageKey, updatedKeys);
           return;
         }
       } catch (e) {
@@ -89,6 +93,7 @@ export const apiKeyUtils = {
             : k
         );
         localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+        syncToServer(storageKey, updatedKeys);
         return;
       }
     }
@@ -109,11 +114,13 @@ export const apiKeyUtils = {
     // 若 unique 中已存在任意 isBuiltIn 的条目，则不再追加，保证幂等
     if (unique.some(k => k.isBuiltIn)) {
       localStorage.setItem(storageKey, JSON.stringify(unique));
+      syncToServer(storageKey, unique);
       return;
     }
 
     const updatedKeys = [builtInApiKey, ...unique];
     localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+    syncToServer(storageKey, updatedKeys);
   },
 
   // 获取用户的API Keys
@@ -143,7 +150,7 @@ export const apiKeyUtils = {
   getDefaultApiKey: (userId: string): ApiKey | null => {
     const apiKeys = apiKeyUtils.getUserApiKeys(userId);
     const defaultKey = apiKeys.find(key => key.isDefault);
-    return defaultKey || (apiKeys.length > 0 ? apiKeys[0] : null);
+    return defaultKey ?? apiKeys[0] ?? null;
   },
 
   // 获取解密后的 API Key
@@ -165,6 +172,7 @@ export const apiKeyUtils = {
     
     const storageKey = `api_keys_${userId}`;
     localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+    syncToServer(storageKey, updatedKeys);
   },
 
   // 检查用户是否有可用的API Key
@@ -183,14 +191,15 @@ export const apiKeyUtils = {
     
     const storageKey = `api_keys_${userId}`;
     localStorage.setItem(storageKey, JSON.stringify(updatedKeys));
+    syncToServer(storageKey, updatedKeys);
   },
 
   // 获取支持的提供商列表
   getSupportedProviders: () => [
     { id: 'builtin', name: '项目内置', models: ['DeepSeek V3.1', 'Gemini 2.0 Flash', 'Kimi K2', 'Mistral Small', 'GPT-OSS-120B'] },
-    { id: 'openai', name: 'OpenAI', models: ['gpt-4', 'gpt-3.5-turbo'] },
-    { id: 'anthropic', name: 'Anthropic', models: ['claude-3', 'claude-2'] },
-    { id: 'google', name: 'Google AI', models: ['gemini-pro', 'gemini-pro-vision'] },
+    { id: 'deepseek', name: 'DeepSeek', models: ['deepseek-chat', 'deepseek-reasoner'] },
+    { id: 'qwen', name: '通义千问', models: ['qwen-turbo', 'qwen-plus', 'qwen-max'] },
+    { id: 'kimi', name: 'Kimi', models: ['moonshot-v1-8k', 'moonshot-v1-32k'] },
     { id: 'custom', name: '自定义', models: [] }
   ],
 
@@ -201,12 +210,10 @@ export const apiKeyUtils = {
     switch (provider) {
       case 'builtin':
         return true; // 内置 API Key 总是有效
-      case 'openai':
+      case 'deepseek':
+      case 'qwen':
+      case 'kimi':
         return key.startsWith('sk-') && key.length > 20;
-      case 'anthropic':
-        return key.startsWith('sk-ant-') && key.length > 20;
-      case 'google':
-        return key.length > 10; // Google API keys vary in format
       case 'custom':
         return key.length > 5; // Minimal validation for custom keys
       default:
@@ -224,28 +231,25 @@ export const apiKeyUtils = {
           'Content-Type': 'application/json'
         }
       },
-      openai: {
-        baseURL: 'https://api.openai.com/v1',
+      deepseek: {
+        baseURL: 'https://api.deepseek.com/v1',
         headers: {
           'Authorization': `Bearer ${apiKey.key}`,
           'Content-Type': 'application/json'
         }
       },
-      anthropic: {
-        baseURL: 'https://api.anthropic.com/v1',
+      qwen: {
+        baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
         headers: {
-          'x-api-key': apiKey.key,
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01'
+          'Authorization': `Bearer ${apiKey.key}`,
+          'Content-Type': 'application/json'
         }
       },
-      google: {
-        baseURL: 'https://generativelanguage.googleapis.com/v1beta',
+      kimi: {
+        baseURL: 'https://api.moonshot.cn/v1',
         headers: {
+          'Authorization': `Bearer ${apiKey.key}`,
           'Content-Type': 'application/json'
-        },
-        params: {
-          key: apiKey.key
         }
       },
       custom: {
@@ -266,22 +270,14 @@ export const apiKeyUtils = {
       
       // 根据不同提供商进行测试请求
       switch (apiKey.provider) {
-        case 'openai':
-          // config 可能是不同 shape 的对象，使用 any 以避免类型检查错误
+        case 'builtin':
+        case 'deepseek':
+        case 'qwen':
+        case 'kimi':
           const openaiResponse = await fetch(`${(config as any).baseURL}/models`, {
             headers: (config as any).headers
           });
           return { valid: openaiResponse.ok };
-          
-        case 'anthropic':
-          // Anthropic doesn't have a simple test endpoint, so we'll just validate the format
-          return { valid: apiKeyUtils.validateApiKey('anthropic', apiKey.key) };
-          
-        case 'google':
-          const googleResponse = await fetch(
-            `${(config as any).baseURL}/models?${new URLSearchParams((config as any).params || {})}`
-          );
-          return { valid: googleResponse.ok };
           
         default:
           return { valid: true }; // Assume custom keys are valid

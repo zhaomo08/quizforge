@@ -91,11 +91,15 @@ export const notificationSystem = {
     if (duplicateIndex !== -1) {
       const [existing] = notifications.splice(duplicateIndex, 1);
       const updated: Notification = {
-        ...existing,
-        ...notification,
+        id: existing!.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        priority: notification.priority,
         read: false,
         createdAt: nowIso,
       };
+      if (notification.actionUrl !== undefined) updated.actionUrl = notification.actionUrl;
       notifications.unshift(updated);
       setHistoryTimestamp(historyKey, nowIso);
     } else {
@@ -157,7 +161,7 @@ export const notificationSystem = {
     if (testResults.length === 0) return;
 
     // Check for study reminders
-    const lastTest = testResults[testResults.length - 1];
+    const lastTest = testResults[testResults.length - 1]!;
     const daysSinceLastTest = Math.floor(
       (now.getTime() - new Date(lastTest.completedAt).getTime()) / (1000 * 60 * 60 * 24)
     );

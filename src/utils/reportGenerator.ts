@@ -1,4 +1,4 @@
-import { TestResult, Question } from '@/types';
+import { TestResult } from '@/types';
 // PDF 相关依赖（在 package.json 中已添加 jspdf 与 jspdf-autotable）
 // 使用动态导入减少初始包体积: 在调用导出时再加载。
 import { storage } from './storage';
@@ -94,7 +94,7 @@ export const reportGenerator = {
       if (!categoryStats[result.category]) {
         categoryStats[result.category] = [];
       }
-      categoryStats[result.category].push(result);
+      categoryStats[result.category]!.push(result);
     });
 
     const categoryAnalysis = Object.entries(categoryStats).map(([category, results]) => {
@@ -144,7 +144,7 @@ export const reportGenerator = {
     // Analyze study pattern
     const testDates = periodResults.map(result => new Date(result.completedAt));
     const daysBetweenTests = testDates.slice(1).map((date, index) => {
-      const prevDate = testDates[index];
+      const prevDate = testDates[index]!;
       return Math.floor((date.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
     });
     
@@ -300,7 +300,7 @@ export const reportGenerator = {
       .slice(0, 5);
 
     const improvementAreas = Object.keys(categoryMistakes)
-      .sort((a, b) => categoryMistakes[b] - categoryMistakes[a])
+      .sort((a, b) => (categoryMistakes[b] ?? 0) - (categoryMistakes[a] ?? 0))
       .slice(0, 3);
 
     return {
@@ -476,7 +476,7 @@ export const reportGenerator = {
             const buffer = await resp.arrayBuffer();
             const uint8 = new Uint8Array(buffer);
             let binary = '';
-            for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+            for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]!);
             const base64 = btoa(binary);
             (doc as any).addFileToVFS(c.vfsName, base64);
             (doc as any).addFont(c.vfsName, desiredFontName, 'normal');

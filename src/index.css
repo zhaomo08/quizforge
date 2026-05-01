@@ -223,9 +223,19 @@ button:focus-visible {
   }
 }
 
-/* Dark mode transitions */
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+/* Dark mode transitions - 仅对主题相关元素生效，避免全局过渡导致性能问题 */
+body,
+nav,
+header,
+.card,
+[class*="bg-white"],
+[class*="bg-gray"],
+[class*="bg-background"],
+[class*="bg-card"],
+[class*="border-gray"],
+[class*="border-border"],
+.navigation-container {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
 }
 
 /* Dark mode specific styles */

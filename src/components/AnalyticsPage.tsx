@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -25,6 +26,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { storage } from '@/utils/storage';
 import { LearningGoals } from '@/components/LearningGoals';
 import { reportGenerator } from '@/utils/reportGenerator';
@@ -55,9 +57,11 @@ interface AnalyticsData {
 }
 
 export const AnalyticsPage: React.FC = () => {
-  const { dispatch } = useApp();
+  const { state } = useApp();
+  const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
 
+  // 以 state.questions/wrongAnswers 作为依赖，确保测试完成后数据自动更新
   const analyticsData = useMemo((): AnalyticsData => {
     const testResults = storage.getTestResults();
     const stats = testUtils.getUserStats();
@@ -117,15 +121,15 @@ export const AnalyticsPage: React.FC = () => {
     
     if (sortedResults.length > 0) {
       const today = new Date();
-      const lastTestDate = new Date(sortedResults[0].completedAt);
+      const lastTestDate = new Date(sortedResults[0]!.completedAt);
       const daysSinceLastTest = Math.floor((today.getTime() - lastTestDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       if (daysSinceLastTest <= 1) {
         currentStreak = 1;
         let currentDate = new Date(lastTestDate);
-        
+
         for (let i = 1; i < sortedResults.length; i++) {
-          const testDate = new Date(sortedResults[i].completedAt);
+          const testDate = new Date(sortedResults[i]!.completedAt);
           const daysDiff = Math.floor((currentDate.getTime() - testDate.getTime()) / (1000 * 60 * 60 * 24));
           
           if (daysDiff <= 1) {
@@ -139,10 +143,10 @@ export const AnalyticsPage: React.FC = () => {
       
       // Calculate longest streak
       tempStreak = 1;
-      let prevDate = new Date(sortedResults[0].completedAt);
-      
+      let prevDate = new Date(sortedResults[0]!.completedAt);
+
       for (let i = 1; i < sortedResults.length; i++) {
-        const testDate = new Date(sortedResults[i].completedAt);
+        const testDate = new Date(sortedResults[i]!.completedAt);
         const daysDiff = Math.floor((prevDate.getTime() - testDate.getTime()) / (1000 * 60 * 60 * 24));
         
         if (daysDiff <= 1) {
@@ -169,10 +173,11 @@ export const AnalyticsPage: React.FC = () => {
       streakData: {
         currentStreak,
         longestStreak,
-        lastTestDate: sortedResults.length > 0 ? sortedResults[0].completedAt : ''
+        lastTestDate: sortedResults.length > 0 ? sortedResults[0]!.completedAt : ''
       }
     };
-  }, [selectedPeriod]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPeriod, state.questions, state.wrongAnswers]);
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600 bg-green-50';
@@ -251,7 +256,7 @@ export const AnalyticsPage: React.FC = () => {
             <p className="text-gray-600 dark:text-muted-foreground mb-6">
               开始你的第一次测试，解锁详细的学习分析功能
             </p>
-            <Button onClick={() => dispatch({ type: 'SET_PAGE', payload: 'category' })}>
+            <Button onClick={() => navigate('/category')}>
               开始测试
             </Button>
           </CardContent>
@@ -627,6 +632,7 @@ export const AnalyticsPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {(() => {
+                  // 直接使用外部 memoized report（见组件顶部 reportData）
                   const periodDays = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : selectedPeriod === '90d' ? 90 : 0;
                   const report = reportGenerator.generateReport(periodDays || 365);
                   
@@ -856,7 +862,7 @@ export const AnalyticsPage: React.FC = () => {
                   <Button 
                     variant="outline" 
                     className="h-auto p-4 justify-start"
-                    onClick={() => dispatch({ type: 'SET_PAGE', payload: 'wrong-answers' })}
+                    onClick={() => navigate('/wrong-answers')}
                   >
                     <div className="text-left">
                       <div className="font-medium">复习错题</div>
@@ -869,7 +875,7 @@ export const AnalyticsPage: React.FC = () => {
                   <Button 
                     variant="outline" 
                     className="h-auto p-4 justify-start"
-                    onClick={() => dispatch({ type: 'SET_PAGE', payload: 'generate' })}
+                    onClick={() => navigate('/generate')}
                   >
                     <div className="text-left">
                       <div className="font-medium">生成新题</div>
@@ -882,7 +888,7 @@ export const AnalyticsPage: React.FC = () => {
                   <Button 
                     variant="outline" 
                     className="h-auto p-4 justify-start"
-                    onClick={() => dispatch({ type: 'SET_PAGE', payload: 'category' })}
+                    onClick={() => navigate('/category')}
                   >
                     <div className="text-left">
                       <div className="font-medium">专项练习</div>

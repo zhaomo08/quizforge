@@ -3,14 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
-  Database, 
-  Download, 
-  Upload, 
-  Trash2, 
+import {
+  Database,
+  Download,
+  Upload,
+  Trash2,
   Search,
   BarChart3,
-  ArrowLeft,
   FileText,
   AlertTriangle,
   ChevronLeft,
@@ -19,7 +18,6 @@ import {
 import { useApp } from '@/contexts/AppContext';
 import { storage } from '@/utils/storage';
 import { testUtils } from '@/utils/testUtils';
-import { BackButton } from '@/components/BackButton';
 import { PageHeader } from '@/components/PageHeader';
 
 export const ManagePage: React.FC = () => {

@@ -4,10 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Code, Database, Cpu, Globe, Brain, Server } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { storage } from '@/utils/storage';
 
 export const CategorySelection: React.FC = () => {
   const { dispatch } = useApp();
+  const navigate = useNavigate();
 
   const categories = [
     {
@@ -65,13 +67,13 @@ export const CategorySelection: React.FC = () => {
     const questions = storage.getQuestionsByCategory(categoryId);
     
     if (questions.length === 0) {
-      // 如果没有题目，提示用户先生成题目
       dispatch({ type: 'SET_ERROR', payload: `${categoryId} 类别暂无题目，请先使用AI生成题目` });
       return;
     }
 
     dispatch({ type: 'SET_CATEGORY', payload: categoryId });
-    dispatch({ type: 'SET_PAGE', payload: 'test-setup' });
+    // 通过URL参数传递分类，避免竞态条件
+    navigate(`/test-setup?category=${categoryId}`);
   };
 
   const getQuestionCount = (categoryId: string) => {
@@ -83,7 +85,7 @@ export const CategorySelection: React.FC = () => {
       <div className="flex items-center mb-8">
         <Button
           variant="ghost"
-          onClick={() => dispatch({ type: 'SET_PAGE', payload: 'home' })}
+          onClick={() => navigate('/')}
           className="mr-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -143,7 +145,7 @@ export const CategorySelection: React.FC = () => {
             使用AI自动生成功能，为任何类别创建个性化的面试题目
           </p>
           <Button 
-            onClick={() => dispatch({ type: 'SET_PAGE', payload: 'generate' })}
+            onClick={() => navigate('/generate')}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Brain className="h-4 w-4 mr-2" />

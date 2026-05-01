@@ -1,4 +1,4 @@
-import { TestResult, Question } from '@/types';
+import { TestResult } from '@/types';
 import { storage } from './storage';
 
 export interface LearningPattern {
@@ -48,7 +48,7 @@ export class LearningAnalytics {
   /**
    * 分析学习模式和趋势
    */
-  static analyzeLearningPattern(userId: string = 'default'): LearningPattern {
+  static analyzeLearningPattern(_userId: string = 'default'): LearningPattern {
     const results = storage.getTestResults();
     const recentResults = results.slice(-10); // 最近10次测试
     
@@ -100,8 +100,8 @@ export class LearningAnalytics {
       if (!categoryStats[result.category]) {
         categoryStats[result.category] = { total: 0, correct: 0 };
       }
-      categoryStats[result.category].total += result.totalQuestions;
-      categoryStats[result.category].correct += result.correctAnswers;
+      categoryStats[result.category]!.total += result.totalQuestions;
+      categoryStats[result.category]!.correct += result.correctAnswers;
     });
 
     const categoryPerformance: Record<string, number> = {};
@@ -121,7 +121,7 @@ export class LearningAnalytics {
     const recent = results.slice(-3);
     const scores = recent.map(r => r.score);
     
-    const trend = scores[2] - scores[0];
+    const trend = (scores[2] ?? 0) - (scores[0] ?? 0);
     
     if (trend > 5) return 'improving';
     if (trend < -5) return 'declining';
@@ -194,47 +194,6 @@ export class LearningAnalytics {
     }));
   }
 
-  /**
-   * 提取知识点ID
-   */
-  private static extractKnowledgePointId(question: Question): string {
-    const knowledgePoint = this.extractKnowledgePointName(question);
-    return knowledgePoint.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '');
-  }
-
-  /**
-   * 提取知识点名称
-   */
-  private static extractKnowledgePointName(question: Question): string {
-    const questionText = question.question.toLowerCase();
-    
-    // 根据题目内容判断知识点类别
-    if (questionText.includes('语法') || questionText.includes('变量') || questionText.includes('数据类型') || questionText.includes('运算符')) {
-      return '基础语法';
-    } else if (questionText.includes('类') || questionText.includes('对象') || questionText.includes('继承') || questionText.includes('封装') || questionText.includes('多态')) {
-      return '面向对象';
-    } else if (questionText.includes('数组') || questionText.includes('链表') || questionText.includes('栈') || questionText.includes('队列') || questionText.includes('树') || questionText.includes('图')) {
-      return '数据结构';
-    } else if (questionText.includes('算法') || questionText.includes('排序') || questionText.includes('查找') || questionText.includes('递归') || questionText.includes('动态规划')) {
-      return '算法思维';
-    } else if (questionText.includes('函数') || questionText.includes('方法') || questionText.includes('参数') || questionText.includes('返回值')) {
-      return '函数与方法';
-    } else if (questionText.includes('异常') || questionText.includes('错误') || questionText.includes('调试')) {
-      return '异常处理';
-    } else if (questionText.includes('文件') || questionText.includes('输入') || questionText.includes('输出') || questionText.includes('流')) {
-      return '文件操作';
-    } else if (questionText.includes('线程') || questionText.includes('并发') || questionText.includes('同步') || questionText.includes('异步')) {
-      return '并发编程';
-    } else if (questionText.includes('数据库') || questionText.includes('sql') || questionText.includes('查询')) {
-      return '数据库操作';
-    } else if (questionText.includes('网络') || questionText.includes('http') || questionText.includes('api')) {
-      return '网络编程';
-    }
-    
-    // 如果没有匹配到特定类别，尝试从题目中提取关键词
-    const keywords = question.question.match(/[\u4e00-\u9fa5]{2,8}/g) || [];
-    return keywords.slice(0, 2).join(' ') || '综合应用';
-  }
 
   /**
    * 获取学习目标
@@ -350,15 +309,16 @@ export class LearningAnalytics {
     }
 
     // 基于强项生成进阶建议
-    if (pattern.strongAreas.length > 0) {
-      recommendations.push({
+    if (pattern.strongAreas.length > 0 && pattern.strongAreas[0] !== undefined) {
+      const rec: StudyRecommendation = {
         type: 'learn',
         title: `深入学习${this.getCategoryName(pattern.strongAreas[0])}`,
         description: '你在这个领域表现优秀，可以尝试更高难度的内容',
         priority: 'low',
         estimatedTime: 30,
-        category: pattern.strongAreas[0]
-      });
+      };
+      rec.category = pattern.strongAreas[0];
+      recommendations.push(rec);
     }
 
     return recommendations.slice(0, 4); // 最多返回4个建议
@@ -477,7 +437,7 @@ export class LearningAnalytics {
     let nextMilestone = '完成第一次测试';
     if (results.length > 0) {
       if (pattern.weakAreas.length > 0) {
-        nextMilestone = `提升${this.getCategoryName(pattern.weakAreas[0])}到70%准确率`;
+        nextMilestone = `提升${this.getCategoryName(pattern.weakAreas[0] ?? '')}到70%准确率`;
       } else if (avgScore < 90) {
         nextMilestone = '在所有领域达到90%准确率';
       } else {

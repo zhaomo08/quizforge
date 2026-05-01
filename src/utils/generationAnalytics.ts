@@ -1,4 +1,4 @@
-import { Question, TestResult, WrongAnswer } from '@/types';
+import { Question } from '@/types';
 import { storage } from './storage';
 
 export interface GenerationRecord {
@@ -69,9 +69,9 @@ export class GenerationAnalytics {
     const recordIndex = records.findIndex(r => r.id === recordId);
     
     if (recordIndex !== -1) {
-      records[recordIndex].qualityScore = qualityScore;
+      records[recordIndex]!.qualityScore = qualityScore;
       if (userRating !== undefined) {
-        records[recordIndex].userRating = userRating;
+        records[recordIndex]!.userRating = userRating;
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     }
@@ -174,18 +174,11 @@ export class GenerationAnalytics {
   // 获取类别洞察
   static getCategoryInsights(): GenerationInsight[] {
     const records = this.getGenerationRecords();
-    const questions = storage.getQuestions();
-    const testResults = storage.getTestResults();
-    const wrongAnswers = storage.getWrongAnswers();
 
     const categories = [...new Set(records.map(r => r.category))];
-    
+
     return categories.map(category => {
       const categoryRecords = records.filter(r => r.category === category);
-      const categoryQuestions = questions.filter(q => q.category === category);
-      const categoryTests = testResults.filter(result => 
-        result.questions.some(q => q.category === category)
-      );
 
       // 计算平均质量
       const qualityScores = categoryRecords
@@ -224,8 +217,8 @@ export class GenerationAnalytics {
         averageQuality,
         successRate,
         preferredDifficulty,
-        lastGenerated: categoryRecords.length > 0 
-          ? categoryRecords[categoryRecords.length - 1].timestamp 
+        lastGenerated: categoryRecords.length > 0
+          ? categoryRecords[categoryRecords.length - 1]!.timestamp
           : '',
         duplicateRate,
         recommendedCount
@@ -237,7 +230,6 @@ export class GenerationAnalytics {
   static generateSmartRecommendations(): SmartRecommendation[] {
     const records = this.getGenerationRecords();
     const questions = storage.getQuestions();
-    const testResults = storage.getTestResults();
     const wrongAnswers = storage.getWrongAnswers();
     const recommendations: SmartRecommendation[] = [];
 

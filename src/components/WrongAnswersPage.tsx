@@ -10,8 +10,6 @@ import {
   XCircle,
   RotateCcw,
   Trash2,
-  Home,
-  RefreshCw,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';

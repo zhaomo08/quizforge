@@ -24,7 +24,6 @@ export const GoogleCallback: React.FC<GoogleCallbackProps> = ({
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const error = urlParams.get('error');
-        const state = urlParams.get('state');
 
         if (error) {
           // Google 返回了错误
